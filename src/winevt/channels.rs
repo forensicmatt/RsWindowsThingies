@@ -53,6 +53,7 @@ impl Drop for EvtHandle {
 }
 
 
+#[allow(dead_code)]
 pub struct ChannelConfig {
     name: String,
     handle: EvtHandle
@@ -69,6 +70,31 @@ impl ChannelConfig {
                 handle: handle
             }
         )
+    }
+
+    pub fn get_log_file_path(&self) -> Option<String> {
+        match evt_get_channel_config_property(
+            &self.handle, EvtChannelLoggingConfigLogFilePath
+        ) {
+            Some(v) => {
+                match v.get_variant_value() {
+                    Ok(variant_value) => {
+                        match variant_value {
+                            VariantValue::String(s) => return Some(s),
+                            other => {
+                                error!("Not expecting {:?}", other);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        error!("Error getting variant value for EvtChannelConfigClassicEventlog: {:?}", e);
+                    }
+                }
+            },
+            None => {}
+        }
+
+        None
     }
 
     pub fn is_classic_event_log(&self) -> bool {
@@ -194,7 +220,7 @@ fn evt_get_channel_config_property(evt_handle: &EvtHandle, property_id: EVT_CHAN
         if last_error == ERROR_INSUFFICIENT_BUFFER {
             let mut buffer: Vec<u8> = vec![0; buffer_used as usize];
 
-            let result = unsafe {
+            match unsafe {
                 EvtGetChannelConfigProperty(
                     evt_handle.0,
                     property_id,
@@ -203,22 +229,29 @@ fn evt_get_channel_config_property(evt_handle: &EvtHandle, property_id: EVT_CHAN
                     buffer.as_mut_ptr() as *mut EVT_VARIANT,
                     &mut buffer_used
                 )
-            };
+            } {
+                0 => {
+                    // TODO: This function should error here because we expected this
+                    // to work. For now, we do nothing...
+                },
+                _ => {
+                    let variant : EVT_VARIANT = unsafe {
+                        std::ptr::read(
+                            buffer.as_ptr() as *const _
+                        ) 
+                    };
 
-            let variant : EVT_VARIANT = unsafe {
-                std::ptr::read(
-                    buffer.as_ptr() as *const _
-                ) 
-            };
-
-            return Some(
-                EvtVariant(variant)
-            );
+                    return Some(
+                        EvtVariant(variant)
+                    );
+                }
+            }
         }
     }
 
     None
 }
+
 
 /// wrapper for EvtOpenChannelConfig
 fn evt_open_channel_config(channel_path: &String) -> Result<EvtHandle, WinThingError> {
@@ -256,6 +289,7 @@ fn evt_open_channel_config(channel_path: &String) -> Result<EvtHandle, WinThingE
     }
 }
 
+
 /// wrapper for EvtNextChannelPath
 fn evt_next_channel_id(channel_enum_handle: EVT_HANDLE) -> Option<String> {
     let mut buffer_used: DWORD = 0;
@@ -287,7 +321,7 @@ fn evt_next_channel_id(channel_enum_handle: EVT_HANDLE) -> Option<String> {
                 )
             } {
                 0 => {
-                    // This function should error here because we expected this
+                    // TODO: This function should error here because we expected this
                     // to work. For now, we do nothing...
                 },
                 _ => {

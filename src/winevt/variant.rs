@@ -68,6 +68,7 @@ impl VariantValue {
     }
 
     pub fn from_variant(variant: &EVT_VARIANT) -> Result<Self, WinThingError> {
+        #[allow(non_upper_case_globals)]
         let value = match variant.Type {
             EvtVarTypeNull => VariantValue::Null,
             EvtVarTypeString => {

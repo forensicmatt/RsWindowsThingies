@@ -4,6 +4,7 @@ use std::string::FromUtf16Error;
 
 #[derive(Debug)]
 pub enum ErrorType {
+    CliError,
     WinApiError,
     Utf16Error,
     Utf8Error,
@@ -17,6 +18,13 @@ pub struct WinThingError {
 }
 
 impl WinThingError {
+    pub fn cli_error(message: String) -> Self {
+        Self {
+            message: message,
+            kind: ErrorType::CliError
+        }
+    }
+
     pub fn unhandled_variant(message: String) -> Self {
         Self {
             message: message,
