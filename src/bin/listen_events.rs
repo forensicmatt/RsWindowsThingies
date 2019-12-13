@@ -61,6 +61,7 @@ fn main() {
     let channel_list = get_channel_name_list();
     // Create our query list for XPath
     let mut query_list = QueryList::new();
+
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel
@@ -72,8 +73,37 @@ fn main() {
             }
         };
 
+        if channel.contains("Analytic") || channel.contains("Debug") {
+            // We cant monitor Analytic or Debug channels
+            // See https://docs.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtsubscribe
+            // It wont error, but it wont work either if we include any of these.
+            continue;
+        }
+
+        // Cutting out config types of 2 or more seems to resolve
+        // observed Subscription issues
+        match channel_config.get_config_type() {
+            Some(i) => {
+                if i > 1 {
+                    continue;
+                }
+            },
+            None => continue
+        };
+
+        // Cutting out config isolations that are not 0 seems to resolve
+        // observed Subscription issues
+        match channel_config.get_config_isolation() {
+            Some(i) => {
+                if i != 0 {
+                    continue;
+                }
+            },
+            None => continue
+        }
+
         // We can only monitor channels that are enabled and are classic event log channels
-        if !channel_config.is_enabled() || !channel_config.is_classic_event_log() {
+        if !channel_config.is_enabled() {
             continue;
         }
 
