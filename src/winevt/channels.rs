@@ -72,6 +72,31 @@ impl ChannelConfig {
         )
     }
 
+    pub fn get_config_isolation(&self) -> Option<u64> {
+        match evt_get_channel_config_property(
+            &self.handle, EvtChannelConfigIsolation
+        ) {
+            Some(v) => {
+                match v.get_variant_value() {
+                    Ok(variant_value) => {
+                        match variant_value {
+                            VariantValue::UInt(i) => return Some(i),
+                            other => {
+                                error!("Not expecting {:?}", other);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        error!("Error getting variant value for EvtChannelConfigIsolation: {:?}", e);
+                    }
+                }
+            },
+            None => {}
+        }
+
+        None
+    }
+
     pub fn get_log_file_path(&self) -> Option<String> {
         match evt_get_channel_config_property(
             &self.handle, EvtChannelLoggingConfigLogFilePath
@@ -88,6 +113,31 @@ impl ChannelConfig {
                     },
                     Err(e) => {
                         error!("Error getting variant value for EvtChannelConfigClassicEventlog: {:?}", e);
+                    }
+                }
+            },
+            None => {}
+        }
+
+        None
+    }
+
+    pub fn get_config_type(&self) -> Option<u64> {
+        match evt_get_channel_config_property(
+            &self.handle, EvtChannelConfigType
+        ) {
+            Some(v) => {
+                match v.get_variant_value() {
+                    Ok(variant_value) => {
+                        match variant_value {
+                            VariantValue::UInt(i) => return Some(i),
+                            other => {
+                                error!("Not expecting {:?}", other);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        error!("Error getting variant value for EvtChannelConfigType: {:?}", e);
                     }
                 }
             },
