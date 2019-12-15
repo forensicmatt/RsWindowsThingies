@@ -1,0 +1,94 @@
+trigger:
+  branches:
+    include: ['*']
+  tags:
+    include: ['*']
+
+strategy:
+  matrix:
+    windows-stable:
+      imageName: 'vs2017-win2016'
+      target: 'x86_64-pc-windows-msvc'
+      rustup_toolchain: stable
+    
+pool:
+  vmImage: $(imageName)
+
+steps:
+  - script: |
+      curl -sSf -o rustup-init.exe https://win.rustup.rs
+      rustup-init.exe -y --default-toolchain %RUSTUP_TOOLCHAIN%
+      echo "##vso[task.setvariable variable=PATH;]%PATH%;%USERPROFILE%\.cargo\bin"
+    displayName: Windows install rust
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - script: cargo build --all-features --release
+    displayName: Cargo build Windows_NT
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - script: cargo test --all-features
+    displayName: Cargo test Windows_NT
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - bash: |
+      MY_TAG="$(Build.SourceBranch)"
+      MY_TAG=${MY_TAG#refs/tags/}
+      echo $MY_TAG
+      echo "##vso[task.setvariable variable=build.my_tag]$MY_TAG"
+    displayName: "Create tag variable"
+
+  - bash: |
+      DATE="$(date +%Y-%m-%d)"
+      echo "##vso[task.setvariable variable=build.date]$DATE"
+    displayName: "Create date variable"
+
+  - bash: |
+      echo "##vso[task.setvariable variable=build.binary_name]listen_events.exe"
+    displayName: "Create listen_events variable (Windows_NT)"
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - bash: |
+      echo "##vso[task.setvariable variable=build.binary_name2]print_channels.exe"
+    displayName: "Create print_channels variable (Windows_NT)"
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: CopyFiles@2
+    displayName: Copy listen_events
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)/target/release'
+      contents: |
+        $(build.binary_name)
+      targetFolder: '$(Build.BinariesDirectory)'
+      condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: CopyFiles@2
+    displayName: Copy print_channels
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)/target/release'
+      contents: |
+        $(build.binary_name2)
+      targetFolder: '$(Build.BinariesDirectory)'
+      condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: ArchiveFiles@2
+    displayName: Gather assets (Windows)
+    inputs:
+      rootFolderOrFile: '$(Build.BinariesDirectory)'
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/rswindowsthingies-$(build.my_tag)-$(TARGET).zip'
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: GithubRelease@0
+    displayName: Add GithubRelease (Windows)
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq( variables['Agent.OS'], 'Windows_NT' ))
+    inputs:
+      gitHubConnection: 'Github'
+      repositoryName: 'forensicmatt/RsWindowsThingies'
+      action: 'edit'
+      target: '$(build.sourceVersion)'
+      tagSource: 'manual'
+      tag: '$(build.my_tag)'
+      assets: '$(Build.ArtifactStagingDirectory)/rswindowsthingies-$(build.my_tag)-$(TARGET).zip'
+      title: '$(build.my_tag) - $(build.date)'
+      assetUploadMode: 'replace'
+      addChangeLog: false
