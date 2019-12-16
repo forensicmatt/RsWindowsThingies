@@ -1,6 +1,6 @@
 [package]
 name = "rswinthings"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Matthew Seyer"]
 edition = "2018"
 

@@ -13,14 +13,13 @@ use rswinthings::utils::xmltojson::xml_string_to_json;
 use rswinthings::winevt::channels::get_channel_name_list;
 use rswinthings::winevt::channels::ChannelConfig;
 
-static VERSION: &'static str = "0.0.1";
+static VERSION: &'static str = "0.1.0";
 static DESCRIPTION: &'static str = r"
 Event listener written in Rust. Output is JSONL.
 
 This tool queries the available list of channels then creates a XPath
 query and uses the Windows API to monitor for events on the applicable 
-channels. Currently, all classic eventlog channels are selected for 
-monitoring. Use the print_channels tool to list available channels and
+channels. Use the print_channels tool to list available channels and
 their configurations.
 ";
 
