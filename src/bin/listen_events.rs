@@ -13,14 +13,13 @@ use rswinthings::utils::xmltojson::xml_string_to_json;
 use rswinthings::winevt::channels::get_channel_name_list;
 use rswinthings::winevt::channels::ChannelConfig;
 
-static VERSION: &'static str = "0.0.1";
+static VERSION: &'static str = "0.1.0";
 static DESCRIPTION: &'static str = r"
 Event listener written in Rust. Output is JSONL.
 
 This tool queries the available list of channels then creates a XPath
 query and uses the Windows API to monitor for events on the applicable 
-channels. Currently, all classic eventlog channels are selected for 
-monitoring. Use the print_channels tool to list available channels and
+channels. Use the print_channels tool to list available channels and
 their configurations.
 ";
 
@@ -62,6 +61,7 @@ fn main() {
     // Create our query list for XPath
     let mut query_list = QueryList::new();
 
+    let mut channel_count = 0;
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel
@@ -120,6 +120,8 @@ fn main() {
         query_list.with_query(
             channel_query
         );
+
+        channel_count += 1;
     }
 
     // Build the complete xpath query.
@@ -127,13 +129,14 @@ fn main() {
     debug!("XPath query: {}", query_list_build);
     match WinEventsSubscriber::get(query_list_build) {
         Ok(mut events) => {
-            println!("Ctrl+C to quit!");
+            eprintln!("Listening to {} channels.", channel_count);
+            eprintln!("Ctrl+C to quit!");
 
             while let Some(_event) = events.next() {
                 // catch up to present
             }
 
-            println!("Waiting for new events...");
+            eprintln!("Waiting for new events...");
             loop {
                 while let Some(event) = events.next() {
                     let xml_string = event.to_string();
@@ -143,6 +146,6 @@ fn main() {
                 sleep(Duration::from_millis(200));
             }
         }
-        Err(e) => println!("Error: {}", e),
+        Err(e) => eprintln!("Error: {}", e),
     }
 }

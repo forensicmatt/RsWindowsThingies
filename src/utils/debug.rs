@@ -38,7 +38,9 @@ pub fn set_debug_level(level: &str) -> Result<(), WinThingError> {
     
     // Ensure that logger was dispatched
     match result {
-        Ok(_) => trace!("Logging as been initialized!"),
+        Ok(_) => {
+            trace!("Logging as been initialized!");
+        },
         Err(error) => {
             return Err(
                 WinThingError::cli_error(
