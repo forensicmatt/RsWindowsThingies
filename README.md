@@ -3,19 +3,21 @@
 Windows Thingies... but in Rust
 
 # Tools
-## event_listen
+## listen_events
 The event listen tool allows you to see Windows Event Logs in real time.
 
+Note: It takes a minute for the event logs to catch up. I need to implement more of the Windows API to fix this.
+When the "Waiting for new events..." message appears, you know it is actively listening.
+
 ```
-listen_events 0.0.1
+listen_events 0.1.0
 Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>
 
 Event listener written in Rust. Output is JSONL.
 
 This tool queries the available list of channels then creates a XPath
 query and uses the Windows API to monitor for events on the applicable
-channels. Currently, all classic eventlog channels are selected for
-monitoring. Use the print_channels tool to list available channels and
+channels. Use the print_channels tool to list available channels and
 their configurations.
 
 USAGE:
@@ -26,7 +28,9 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -d, --debug <DEBUG>    Debug level to use. [possible values: Off, Error, Warn, Info, Debug, Trace]
+    -c, --channel <CHANNEL>...    Specific Channel to listen to.
+    -d, --debug <DEBUG>           Debug level to use. [possible values: Off, Error, Warn, Info, Debug, Trace]
+    -f, --format <FORMAT>         Output format to use. [defaults to jsonl] [possible values: xml, jsonl]
 ```
 
 ## print_channels
