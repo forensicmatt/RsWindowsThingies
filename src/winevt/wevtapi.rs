@@ -1,6 +1,84 @@
+use std::ffi::OsString;
 use std::ptr::null_mut;
 use winapi::um::winevt::*;
 use winapi::ctypes::c_void;
+use std::os::windows::prelude::*;
+use winapi::shared::minwindef::{DWORD};
+use winapi::um::errhandlingapi::GetLastError;
+use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
+
+
+/// BOOL EvtRender(
+///   EVT_HANDLE Context,
+///   EVT_HANDLE Fragment,
+///   DWORD      Flags,
+///   DWORD      BufferSize,
+///   PVOID      Buffer,
+///   PDWORD     BufferUsed,
+///   PDWORD     PropertyCount
+/// );
+pub fn evt_render(event_handle: EVT_HANDLE) -> Option<String> {
+    let mut buffer_used: DWORD = 0;
+    let mut property_count: DWORD = 0;
+
+    let context = null_mut();
+    let flags = EvtRenderEventXml;
+
+    let result = unsafe {
+        EvtRender(
+            context,
+            event_handle as _,
+            flags,
+            0,
+            null_mut(),
+            &mut buffer_used,
+            &mut property_count
+        )
+    };
+
+    // We expect this to fail but return the buffer size needed.
+    if result == 0 {
+        let last_error: DWORD = unsafe {
+            GetLastError()
+        };
+
+        if last_error == ERROR_INSUFFICIENT_BUFFER {
+            let buffer: Vec<u16> = vec![0; buffer_used as usize];
+
+            let result = unsafe {
+                EvtRender(
+                    context,
+                    event_handle as _,
+                    flags,
+                    buffer.len() as _,
+                    buffer.as_ptr() as _,
+                    &mut buffer_used,
+                    &mut property_count
+                )
+            };
+
+            if result != 0 {
+                let mut index = buffer_used as usize - 1;
+
+                // Buffers can be null padded. We want to trim the null chars.
+                match buffer.iter().position(|&x| x == 0) {
+                    Some(i) => {
+                        index = i;
+                    },
+                    None => {}
+                }
+
+                let xml_string = OsString::from_wide(
+                    &buffer[..index]
+                ).to_string_lossy().to_string();
+
+                return Some(xml_string);
+            }
+        }
+    }
+
+    None
+}
 
 
 /// DWORD EvtSubscribeCallback(
@@ -11,14 +89,19 @@ use winapi::ctypes::c_void;
 pub extern "system" fn evt_subscribe_callback(
     action: EVT_SUBSCRIBE_NOTIFY_ACTION, 
     _user_context: *mut c_void, 
-    _event: EVT_HANDLE
+    event_handle: EVT_HANDLE
 ) -> u32 {
     if action != EvtSubscribeActionDeliver {
         error!("Expected EvtSubscribeActionDeliver for evt_subscribe_callback but found {:?}", action);
         return 0;
     }
 
-    println!("Got Event!!");
+    match evt_render(event_handle) {
+        Some(xml_event) => {
+            println!("{}", xml_event);
+        },
+        None => {}
+    }
 
     return 0;
 }
