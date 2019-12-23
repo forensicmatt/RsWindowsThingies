@@ -1,11 +1,33 @@
 use minidom::Element;
-use quick_xml::Reader;
+use minidom::element::Attrs;
 use serde_json::{Map, Number, Value};
-use std::io::BufRead;
 use std::str::FromStr;
+use crate::errors::WinThingError;
+
+/// Transform a XML String into a json Value
+/// 
+pub fn xml_string_to_json(xml: String) -> Result<Value, WinThingError> {
+    let root = Element::from_str(
+        xml.as_str()
+    )?;
+
+    xml_to_value(
+        &root
+    )
+}
+
+
+/// Trasnform a minidom Element into a json Value
+/// 
+fn xml_to_value(element: &Element) -> Result<Value, WinThingError> {
+    visit_element(
+        &element
+    )
+}
 
 
 /// Get value from a text value
+/// 
 fn parse_text_value(text_string: &str) -> Value {
     // ints
     if let Ok(v) = text_string.parse::<u64>() {
@@ -27,94 +49,125 @@ fn parse_text_value(text_string: &str) -> Value {
     Value::String(text_string.into())
 }
 
-fn convert_node(el: &Element) -> Option<Value> {
-    if el.text().trim() != "" {
-        if el.attrs().count() > 0 {
-            Some(Value::Object(
-                el.attrs()
-                    .map(|(k, v)| (format!("@{}", k), parse_text_value(&v)))
-                    .chain(vec![("#text".to_string(), parse_text_value(&el.text()[..]))])
-                    .collect(),
-            ))
-        } else {
-            Some(parse_text_value(&el.text()[..]))
+
+fn get_data_value(element: &Element) -> Result<Value, WinThingError> {
+    if element.children().next().is_some() {
+        return Err(
+            WinThingError::xml_error(
+                format!("Unhandled logic - Data node has children. {:#?}", element)
+            )
+        );
+    }
+
+    match element.attr("Name") {
+        Some(name_value) => {
+            Ok(json!({
+                name_value: parse_text_value(
+                    &element.text()[..]
+                )
+            }))
+        },
+        None => {
+            Ok(json!({
+                element.name(): parse_text_value(
+                    &element.text()[..]
+                )
+            }))
         }
+    }
+}
+
+
+fn get_value_from_attributes(attrs: Attrs) -> Value {
+    let mut attributes = json!({});
+    
+    for (key, value) in attrs {
+        attributes[key] = parse_text_value(value);
+    }
+
+    attributes
+}
+
+
+/// Get values from element.
+/// An elevent can have a key and key_attributes.
+/// 
+fn visit_element(element: &Element) -> Result<Value, WinThingError> {
+    let mut element_value = json!({});
+    let e_name = element.name();
+
+    // We handle Data elements differently
+    if e_name == "Data" {
+        let d_value = get_data_value(element)?;
+        return Ok(d_value);
+    }
+
+    // Add element attributes to the Value
+    if element.attrs().count() > 0 {
+        // Create the key name
+        let a_key = format!(
+            "{}_attributes", 
+            e_name
+        );
+        // Get the attribute Value
+        let a_value = get_value_from_attributes(
+            element.attrs()
+        );
+        element_value[a_key] = a_value;
+    }
+
+    if element.text().trim() != "" {
+        let e_value = parse_text_value(
+            &element.text()[..]
+        );
+        element_value[e_name] = e_value;
     } else {
-        let mut data = Map::new();
+        let mut children_map = Map::new();
+        for child in element.children() {
+            let child_value = visit_element(
+                child
+            )?;
 
-        for (k, v) in el.attrs() {
-            data.insert(format!("@{}", k), parse_text_value(&v));
-        }
-
-        for child in el.children() {
-            match convert_node(child) {
-                Some(val) => {
-                    let name = &child.name().to_string();
-
-                    if data.contains_key(name) {
-                        if data.get(name).unwrap_or(&Value::Null).is_array() {
-                            data.get_mut(name)
-                                .unwrap()
-                                .as_array_mut()
-                                .unwrap()
-                                .push(val);
-                        } else {
-                            let temp = data.remove(name).unwrap();
-                            data.insert(name.clone(), Value::Array(vec![temp, val]));
+            match child_value {
+                Value::Object(child_map) => {
+                    for (key, value) in child_map {
+                        if children_map.contains_key(&key) {
+                            if !children_map[&key].is_array() {
+                                let orig_value = children_map[&key].to_owned();
+                                children_map[&key] = Value::Array(
+                                    vec![orig_value, value]
+                                );
+                            } else {
+                                let array = children_map[&key]
+                                    .as_array_mut()
+                                    .expect("Value should be array!");
+                                array.push(value);
+                            }
                         }
-                    } else {
-                        data.insert(name.clone(), val);
+                        else {
+                            children_map.insert(
+                                key.to_owned(),
+                                value.to_owned()
+                            );
+                        }
                     }
+                },
+                other => {
+                    return Err(
+                        WinThingError::xml_error(
+                            format!("child_value was expected to be an object! {:?}", other)
+                        )
+                    );
                 }
-                _ => (),
             }
         }
 
-        Some(Value::Object(data))
+        if children_map.len() > 0 {
+            element_value[e_name] = Value::Object(
+                children_map
+            );
+        }
     }
-}
 
-pub fn xml_to_map(e: &Element) -> Value {
-    let mut data = Map::new();
-    data.insert(
-        e.name().to_string(),
-        convert_node(&e).unwrap_or(Value::Null),
-    );
-    Value::Object(data)
-}
-
-pub fn xml_string_to_json(xml: String) -> Value {
-    let root = Element::from_str(xml.as_str()).unwrap();
-    xml_to_map(&root)
-}
-
-pub fn map_over_children<T: BufRead, F: FnMut(&str, &Value)>(xml: T, mut iteratee: F) {
-    let mut reader = Reader::from_reader(xml);
-    let root = Element::from_reader(&mut reader).unwrap();
-
-    for child in root.children() {
-        let mut child_xml = Vec::new();
-        child
-            .write_to(&mut child_xml)
-            .expect("successfully write to the vector");
-        let xml_string = String::from_utf8(child_xml).unwrap();
-        iteratee(xml_string.as_str(), &xml_to_map(&child));
-    }
-}
-
-pub fn map_of_children(root: Element) -> Vec<(String, Value)> {
-    root.children()
-        .map(|child| {
-            let mut child_xml = Vec::new();
-            child
-                .write_to(&mut child_xml)
-                .expect("successfully write to the vector");
-            (String::from_utf8(child_xml).unwrap(), xml_to_map(&child))
-        })
-        .collect()
-}
-
-pub fn get_root<T: BufRead>(xml: T) -> Result<Element, minidom::Error> {
-    let mut reader = Reader::from_reader(xml);
-    Element::from_reader(&mut reader)
+    Ok(element_value)
 }

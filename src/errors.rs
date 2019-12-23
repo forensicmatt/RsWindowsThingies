@@ -1,3 +1,4 @@
+use minidom::Error as MinidomError;
 use std::string::FromUtf8Error;
 use std::string::FromUtf16Error;
 
@@ -8,6 +9,7 @@ pub enum ErrorType {
     WinApiError,
     Utf16Error,
     Utf8Error,
+    XmlError,
     UnhandledVariant
 }
 
@@ -45,6 +47,13 @@ impl WinThingError {
             kind: ErrorType::WinApiError
         }
     }
+
+    pub fn xml_error(message: String) -> Self {
+        Self {
+            message: message,
+            kind: ErrorType::XmlError
+        }
+    }
 }
 
 impl From<FromUtf8Error> for WinThingError {
@@ -61,6 +70,15 @@ impl From<FromUtf16Error> for WinThingError {
         Self {
             message: format!("{}", err),
             kind: ErrorType::Utf16Error,
+        }
+    }
+}
+
+impl From<MinidomError> for WinThingError {
+    fn from(err: MinidomError) -> Self {
+        Self {
+            message: format!("{}", err),
+            kind: ErrorType::XmlError,
         }
     }
 }
