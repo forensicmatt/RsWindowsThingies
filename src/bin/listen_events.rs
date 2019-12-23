@@ -5,6 +5,7 @@ extern crate chrono;
 extern crate serde_json;
 extern crate win_event_log;
 use clap::{App, Arg};
+use std::process::exit;
 use std::thread::sleep;
 use std::time::Duration;
 use win_event_log::prelude::*;
@@ -24,7 +25,29 @@ their configurations.
 ";
 
 
+enum OutputFormat {
+    XmlFormat,
+    JsonlFormat
+}
+
+
 fn make_app<'a, 'b>() -> App<'a, 'b> {
+    let channel = Arg::with_name("channel")
+        .short("-c")
+        .long("channel")
+        .value_name("CHANNEL")
+        .multiple(true)
+        .takes_value(true)
+        .help("Specific Channel to listen to.");
+
+    let format = Arg::with_name("format")
+        .short("-f")
+        .long("format")
+        .value_name("FORMAT")
+        .takes_value(true)
+        .possible_values(&["xml", "jsonl"])
+        .help("Output format to use. [defaults to jsonl]");
+
     let debug = Arg::with_name("debug")
         .short("-d")
         .long("debug")
@@ -37,31 +60,26 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .version(VERSION)
         .author("Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>")
         .about(DESCRIPTION)
+        .arg(channel)
+        .arg(format)
         .arg(debug)
 }
 
 
-fn main() {
-    let app = make_app();
-    let options = app.get_matches();
-
-    match options.value_of("debug") {
-        Some(d) => set_debug_level(d).expect(
-            "Error setting debug level"
-        ),
-        None => {}
-    }
-
+fn get_query_list_from_system() -> (u64, QueryList) {
     let conditions = vec![
-        Condition::filter(EventFilter::level(1, Comparison::GreaterThanOrEqual))
+        Condition::filter(
+            EventFilter::level(1, Comparison::GreaterThanOrEqual)
+        )
     ];
 
     // Get a list off all the channels
     let channel_list = get_channel_name_list();
+
     // Create our query list for XPath
     let mut query_list = QueryList::new();
 
-    let mut channel_count = 0;
+    let mut channel_count: u64 = 0;
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel
@@ -111,6 +129,7 @@ fn main() {
 
         // Create this channels XPath query
         let mut channel_query = Query::new();
+
         let query_item = QueryItem::selector(channel)
             .system_conditions(Condition::or(conditions.clone()))
             .build();
@@ -123,6 +142,73 @@ fn main() {
 
         channel_count += 1;
     }
+
+    (channel_count, query_list)
+}
+
+
+fn get_query_list_from_str_list<'a>(channel_list: Vec<&'a str>) -> (u64, QueryList) {
+    let conditions = vec![
+        Condition::filter(
+            EventFilter::level(1, Comparison::GreaterThanOrEqual)
+        )
+    ];
+
+    // Create our query list for XPath
+    let mut query_list = QueryList::new();
+    let mut channel_count: u64 = 0;
+    for channel in channel_list {
+        // Create this channels XPath query
+        let mut channel_query = Query::new();
+
+        let query_item = QueryItem::selector(channel.clone())
+            .system_conditions(Condition::or(conditions.clone()))
+            .build();
+
+        channel_query.item(query_item);
+
+        query_list.with_query(
+            channel_query
+        );
+
+        channel_count += 1;
+    }
+
+    (channel_count, query_list)
+}
+
+
+fn main() {
+    let app = make_app();
+    let options = app.get_matches();
+
+    match options.value_of("debug") {
+        Some(d) => set_debug_level(d).expect(
+            "Error setting debug level"
+        ),
+        None => {}
+    }
+
+    let format_enum = match options.value_of("format") {
+        Some(f) => {
+            match f {
+                "xml" => OutputFormat::XmlFormat,
+                "jsonl" => OutputFormat::JsonlFormat,
+                other => {
+                    eprintln!("Unkown format: {}", other);
+                    exit(-1);
+                }
+            }
+        },
+        None => OutputFormat::JsonlFormat
+    };
+
+    let (channel_count, query_list) = match options.values_of("channel") {
+        Some(v_list) => {
+            get_query_list_from_str_list(v_list.collect())
+        },
+        None => get_query_list_from_system()
+    };
 
     // Build the complete xpath query.
     let query_list_build = query_list.build();
@@ -140,8 +226,21 @@ fn main() {
             loop {
                 while let Some(event) = events.next() {
                     let xml_string = event.to_string();
-                    let value = xml_string_to_json(xml_string);
-                    println!("{}", &value.to_string());
+                    match format_enum {
+                        OutputFormat::JsonlFormat => {
+                            let value = match xml_string_to_json(xml_string) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    eprintln!("Error converting XML string to Value: {:?}", e);
+                                    continue;
+                                }
+                            };
+                            println!("{}", &value.to_string());
+                        },
+                        OutputFormat::XmlFormat => {
+                            println!("{}", xml_string.trim_end());
+                        }
+                    };
                 }
                 sleep(Duration::from_millis(200));
             }
