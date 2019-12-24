@@ -28,7 +28,3 @@ features = [
 "winerror",
 "guiddef"
 ]
-
-[dependencies.win-event-log]
-git = "https://github.com/rustysec/win-event-log-rs"
-features = ["subscriber", "xml"]
