@@ -1,20 +1,23 @@
-#[macro_use]
 extern crate log;
 extern crate clap;
 extern crate chrono;
 extern crate serde_json;
-extern crate win_event_log;
 use clap::{App, Arg};
 use std::process::exit;
 use std::thread::sleep;
 use std::time::Duration;
-use win_event_log::prelude::*;
 use rswinthings::utils::debug::set_debug_level;
-use rswinthings::utils::xmltojson::xml_string_to_json;
 use rswinthings::winevt::channels::get_channel_name_list;
 use rswinthings::winevt::channels::ChannelConfig;
+use rswinthings::winevt::callback::OutputFormat;
+use rswinthings::winevt::callback::CallbackContext;
+use rswinthings::winevt::subscription::ChannelSubscription;
+use winapi::um::winevt::{
+    EvtSubscribeToFutureEvents,
+    EvtSubscribeStartAtOldestRecord
+};
 
-static VERSION: &'static str = "0.1.0";
+static VERSION: &'static str = "0.2.0";
 static DESCRIPTION: &'static str = r"
 Event listener written in Rust. Output is JSONL.
 
@@ -23,12 +26,6 @@ query and uses the Windows API to monitor for events on the applicable
 channels. Use the print_channels tool to list available channels and
 their configurations.
 ";
-
-
-enum OutputFormat {
-    XmlFormat,
-    JsonlFormat
-}
 
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
@@ -48,6 +45,11 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .possible_values(&["xml", "jsonl"])
         .help("Output format to use. [defaults to jsonl]");
 
+    let historical = Arg::with_name("historical")
+        .short("p")
+        .long("historical")
+        .help("List historical records along with listening to new changes.");
+
     let debug = Arg::with_name("debug")
         .short("-d")
         .long("debug")
@@ -62,24 +64,15 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .about(DESCRIPTION)
         .arg(channel)
         .arg(format)
+        .arg(historical)
         .arg(debug)
 }
 
 
-fn get_query_list_from_system() -> (u64, QueryList) {
-    let conditions = vec![
-        Condition::filter(
-            EventFilter::level(1, Comparison::GreaterThanOrEqual)
-        )
-    ];
-
+fn get_query_list_from_system(context: &CallbackContext, flags: Option<u32>) -> Vec<ChannelSubscription> {
+    let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
     // Get a list off all the channels
     let channel_list = get_channel_name_list();
-
-    // Create our query list for XPath
-    let mut query_list = QueryList::new();
-
-    let mut channel_count: u64 = 0;
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel
@@ -91,33 +84,10 @@ fn get_query_list_from_system() -> (u64, QueryList) {
             }
         };
 
-        if channel.contains("Analytic") || channel.contains("Debug") {
-            // We cant monitor Analytic or Debug channels
-            // See https://docs.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtsubscribe
-            // It wont error, but it wont work either if we include any of these.
-            continue;
-        }
-
         // Cutting out config types of 2 or more seems to resolve
         // observed Subscription issues
-        match channel_config.get_config_type() {
-            Some(i) => {
-                if i > 1 {
-                    continue;
-                }
-            },
-            None => continue
-        };
-
-        // Cutting out config isolations that are not 0 seems to resolve
-        // observed Subscription issues
-        match channel_config.get_config_isolation() {
-            Some(i) => {
-                if i != 0 {
-                    continue;
-                }
-            },
-            None => continue
+        if !channel_config.can_subscribe() {
+            continue;
         }
 
         // We can only monitor channels that are enabled and are classic event log channels
@@ -127,54 +97,55 @@ fn get_query_list_from_system() -> (u64, QueryList) {
 
         eprintln!("listening to channel: {}", channel);
 
-        // Create this channels XPath query
-        let mut channel_query = Query::new();
+        // Create subscription
+        let subscription = match ChannelSubscription::new(
+            channel.to_string(),
+            None,
+            flags,
+            &context
+        ){
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Error creating subscription for {}: {:?}", channel, e);
+                continue;
+            }
+        };
 
-        let query_item = QueryItem::selector(channel)
-            .system_conditions(Condition::or(conditions.clone()))
-            .build();
-
-        channel_query.item(query_item);
-
-        query_list.with_query(
-            channel_query
-        );
-
-        channel_count += 1;
+        subscriptions.push(subscription);
     }
 
-    (channel_count, query_list)
+    subscriptions
 }
 
 
-fn get_query_list_from_str_list<'a>(channel_list: Vec<&'a str>) -> (u64, QueryList) {
-    let conditions = vec![
-        Condition::filter(
-            EventFilter::level(1, Comparison::GreaterThanOrEqual)
-        )
-    ];
+fn get_query_list_from_str_list<'a>(
+    context: &CallbackContext, 
+    flags: Option<u32>,
+    channel_list: Vec<&'a str>
+) -> Vec<ChannelSubscription> {
+    let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
 
-    // Create our query list for XPath
-    let mut query_list = QueryList::new();
-    let mut channel_count: u64 = 0;
     for channel in channel_list {
-        // Create this channels XPath query
-        let mut channel_query = Query::new();
+        // Create subscription
+        let subscription = match ChannelSubscription::new(
+            channel.to_string(),
+            None,
+            flags,
+            &context
+        ){
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Error creating subscription for {}: {:?}", channel, e);
+                continue;
+            }
+        };
 
-        let query_item = QueryItem::selector(channel.clone())
-            .system_conditions(Condition::or(conditions.clone()))
-            .build();
-
-        channel_query.item(query_item);
-
-        query_list.with_query(
-            channel_query
+        subscriptions.push(
+            subscription
         );
-
-        channel_count += 1;
     }
 
-    (channel_count, query_list)
+    subscriptions
 }
 
 
@@ -203,48 +174,32 @@ fn main() {
         None => OutputFormat::JsonlFormat
     };
 
-    let (channel_count, query_list) = match options.values_of("channel") {
-        Some(v_list) => {
-            get_query_list_from_str_list(v_list.collect())
-        },
-        None => get_query_list_from_system()
+    // Historical flag
+    let flags = match options.is_present("historical") {
+        true => Some(EvtSubscribeStartAtOldestRecord),
+        false => Some(EvtSubscribeToFutureEvents)
     };
 
-    // Build the complete xpath query.
-    let query_list_build = query_list.build();
-    debug!("XPath query: {}", query_list_build);
-    match WinEventsSubscriber::get(query_list_build) {
-        Ok(mut events) => {
-            eprintln!("Listening to {} channels.", channel_count);
-            eprintln!("Ctrl+C to quit!");
+    // Create context
+    let context = CallbackContext::new()
+        .with_format(format_enum);
 
-            while let Some(_event) = events.next() {
-                // catch up to present
-            }
+    let _subscritions = match options.values_of("channel") {
+        Some(v_list) => {
+            get_query_list_from_str_list(
+                &context,
+                flags,
+                v_list.collect()
+            )
+        },
+        None => get_query_list_from_system(
+            &context,
+            flags
+        )
+    };
 
-            eprintln!("Waiting for new events...");
-            loop {
-                while let Some(event) = events.next() {
-                    let xml_string = event.to_string();
-                    match format_enum {
-                        OutputFormat::JsonlFormat => {
-                            let value = match xml_string_to_json(xml_string) {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    eprintln!("Error converting XML string to Value: {:?}", e);
-                                    continue;
-                                }
-                            };
-                            println!("{}", &value.to_string());
-                        },
-                        OutputFormat::XmlFormat => {
-                            println!("{}", xml_string.trim_end());
-                        }
-                    };
-                }
-                sleep(Duration::from_millis(200));
-            }
-        }
-        Err(e) => eprintln!("Error: {}", e),
+    eprintln!("Listening to events...");
+    loop {
+        sleep(Duration::from_millis(200));
     }
 }

@@ -1,3 +1,4 @@
+use std::io::Error as IoError;
 use minidom::Error as MinidomError;
 use std::string::FromUtf8Error;
 use std::string::FromUtf16Error;
@@ -10,7 +11,9 @@ pub enum ErrorType {
     Utf16Error,
     Utf8Error,
     XmlError,
-    UnhandledVariant
+    UnhandledVariant,
+    OsError,
+    UnhandledLogic
 }
 
 #[derive(Debug)]
@@ -52,6 +55,24 @@ impl WinThingError {
         Self {
             message: message,
             kind: ErrorType::XmlError
+        }
+    }
+
+    pub fn unhandled(message: String) -> Self {
+        Self {
+            message: message,
+            kind: ErrorType::UnhandledLogic
+        }
+    }
+
+    pub fn os_error(error_code: i32) -> Self {
+        let error = IoError::from_raw_os_error(
+            error_code
+        );
+
+        Self {
+            message: error.to_string(),
+            kind: ErrorType::OsError
         }
     }
 }
