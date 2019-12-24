@@ -17,7 +17,7 @@ use winapi::um::winevt::{
     EvtSubscribeStartAtOldestRecord
 };
 
-static VERSION: &'static str = "0.1.0";
+static VERSION: &'static str = "0.2.0";
 static DESCRIPTION: &'static str = r"
 Event listener written in Rust. Output is JSONL.
 
@@ -89,17 +89,6 @@ fn get_query_list_from_system(context: &CallbackContext, flags: Option<u32>) -> 
         if !channel_config.can_subscribe() {
             continue;
         }
-
-        // Cutting out config isolations that are not 0 seems to resolve
-        // observed Subscription issues
-        // match channel_config.get_config_isolation() {
-        //     Some(i) => {
-        //         if i != 0 {
-        //             continue;
-        //         }
-        //     },
-        //     None => continue
-        // }
 
         // We can only monitor channels that are enabled and are classic event log channels
         if !channel_config.is_enabled() {

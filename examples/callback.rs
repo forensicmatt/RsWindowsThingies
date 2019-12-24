@@ -2,7 +2,6 @@ use std::thread::sleep;
 use std::time::Duration;
 use rswinthings::winevt::subscription::ChannelSubscription;
 use rswinthings::winevt::callback::CallbackContext;
-use winapi::um::winevt::EvtSubscribeStartAtOldestRecord;
 
 
 fn main() {
