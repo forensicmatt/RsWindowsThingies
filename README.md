@@ -10,7 +10,7 @@ Note: It takes a minute for the event logs to catch up. I need to implement more
 When the "Waiting for new events..." message appears, you know it is actively listening.
 
 ```
-listen_events 0.1.0
+listen_events 0.2.0
 Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>
 
 Event listener written in Rust. Output is JSONL.
@@ -21,11 +21,12 @@ channels. Use the print_channels tool to list available channels and
 their configurations.
 
 USAGE:
-    listen_events.exe [OPTIONS]
+    listen_events.exe [FLAGS] [OPTIONS]
 
 FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -h, --help          Prints help information
+    -p, --historical    List historical records along with listening to new changes.
+    -V, --version       Prints version information
 
 OPTIONS:
     -c, --channel <CHANNEL>...    Specific Channel to listen to.
