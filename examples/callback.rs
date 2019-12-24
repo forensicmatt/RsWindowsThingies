@@ -1,14 +1,28 @@
 use std::thread::sleep;
 use std::time::Duration;
-use rswinthings::winevt::wevtapi::register_event_callback;
+use rswinthings::winevt::subscription::ChannelSubscription;
+use rswinthings::winevt::callback::CallbackContext;
+use winapi::um::winevt::EvtSubscribeStartAtOldestRecord;
 
 
 fn main() {
-    let channel = "Security".to_owned();
+    // Create context
+    let context = CallbackContext::new();
 
-    register_event_callback(
-        &channel,
-        None
+    // Create subscription
+    let _subscription_security = ChannelSubscription::new(
+        "Security".to_owned(),
+        Some("*".to_owned()),
+        None,
+        &context
+    );
+
+    // Create subscription
+    let _subscription_power = ChannelSubscription::new(
+        "Windows PowerShell".to_owned(),
+        Some("*".to_owned()),
+        None,
+        &context
     );
 
     loop {

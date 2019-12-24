@@ -3,7 +3,6 @@ use std::ffi::OsString;
 use std::os::windows::prelude::*;
 use serde_json::Value;
 use winapi::um::winevt::*;
-use winapi::um::winevt::EvtClose;
 use winapi::um::winevt::EVT_HANDLE;
 use winapi::um::winevt::EvtOpenChannelEnum;
 use winapi::um::winevt::EvtNextChannelPath;
@@ -12,6 +11,7 @@ use winapi::um::winevt::EvtGetChannelConfigProperty;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::minwindef::{DWORD};
 use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
+use crate::winevt::EvtHandle;
 use crate::errors::WinThingError;
 use crate::winevt::variant::EvtVariant;
 use crate::winevt::variant::VariantValue;
@@ -41,18 +41,6 @@ const CHANNEL_PROPERTIES: [(&str, u32); 21] = [
 ];
 
 
-pub struct EvtHandle(EVT_HANDLE);
-impl Drop for EvtHandle {
-    fn drop(&mut self) {
-        unsafe {
-            EvtClose(
-                self.0
-            );
-        }
-    }
-}
-
-
 #[allow(dead_code)]
 pub struct ChannelConfig {
     name: String,
@@ -70,6 +58,21 @@ impl ChannelConfig {
                 handle: handle
             }
         )
+    }
+
+    /// Check if this channel can be subscribed to
+    pub fn can_subscribe(&self) -> bool {
+        match self.get_config_type() {
+            Some(i) => {
+                if i as u32 == EvtChannelTypeOperational || i as u32 == EvtChannelTypeAdmin {
+                    true
+                }
+                else {
+                    false
+                }
+            },
+            None => false
+        }
     }
 
     pub fn get_config_isolation(&self) -> Option<u64> {
@@ -246,7 +249,14 @@ pub fn get_channel_name_list() -> Vec<String> {
 }
 
 
-/// wrapper for EvtGetChannelConfigProperty
+/// BOOL EvtGetChannelConfigProperty(
+///   EVT_HANDLE                     ChannelConfig,
+///   EVT_CHANNEL_CONFIG_PROPERTY_ID PropertyId,
+///   DWORD                          Flags,
+///   DWORD                          PropertyValueBufferSize,
+///   PEVT_VARIANT                   PropertyValueBuffer,
+///   PDWORD                         PropertyValueBufferUsed
+/// );
 fn evt_get_channel_config_property(evt_handle: &EvtHandle, property_id: EVT_CHANNEL_CONFIG_PROPERTY_ID) -> Option<EvtVariant> {
     let mut buffer_used: DWORD = 0;
 
@@ -303,7 +313,11 @@ fn evt_get_channel_config_property(evt_handle: &EvtHandle, property_id: EVT_CHAN
 }
 
 
-/// wrapper for EvtOpenChannelConfig
+/// EVT_HANDLE EvtOpenChannelConfig(
+///   EVT_HANDLE Session,
+///   LPCWSTR    ChannelPath,
+///   DWORD      Flags
+/// );
 fn evt_open_channel_config(channel_path: &String) -> Result<EvtHandle, WinThingError> {
     // Create the wide string buffer
     let mut channel_path_u16 : Vec<u16> = channel_path.encode_utf16().collect();

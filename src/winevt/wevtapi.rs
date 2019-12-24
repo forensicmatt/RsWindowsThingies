@@ -2,10 +2,14 @@ use std::ffi::OsString;
 use std::ptr::null_mut;
 use winapi::um::winevt::*;
 use winapi::ctypes::c_void;
+use winapi::um::winevt::EvtClose;
 use std::os::windows::prelude::*;
 use winapi::shared::minwindef::{DWORD};
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
+use crate::winevt::EvtHandle;
+use crate::errors::WinThingError;
+use crate::winevt::callback::CallbackContext;
 
 
 /// BOOL EvtRender(
@@ -17,7 +21,7 @@ use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
 ///   PDWORD     BufferUsed,
 ///   PDWORD     PropertyCount
 /// );
-pub fn evt_render(event_handle: EVT_HANDLE) -> Option<String> {
+pub fn evt_render(event_handle: EVT_HANDLE) -> Result<String, WinThingError> {
     let mut buffer_used: DWORD = 0;
     let mut property_count: DWORD = 0;
 
@@ -72,12 +76,28 @@ pub fn evt_render(event_handle: EVT_HANDLE) -> Option<String> {
                     &buffer[..index]
                 ).to_string_lossy().to_string();
 
-                return Some(xml_string);
-            }
-        }
-    }
+                return Ok(xml_string);
+            } else {
+                let last_error: DWORD = unsafe {
+                    GetLastError()
+                };
 
-    None
+                return Err(WinThingError::os_error(
+                    last_error as i32
+                ));
+            }
+        } else {
+            return Err(WinThingError::os_error(
+                last_error as i32
+            ));
+        }
+    } else {
+        Err(
+            WinThingError::unhandled(
+                "Expected Error on first EvtRender call.".to_owned()
+            )
+        )
+    }
 }
 
 
@@ -88,7 +108,7 @@ pub fn evt_render(event_handle: EVT_HANDLE) -> Option<String> {
 /// )
 pub extern "system" fn evt_subscribe_callback(
     action: EVT_SUBSCRIBE_NOTIFY_ACTION, 
-    _user_context: *mut c_void, 
+    user_context: *mut c_void, 
     event_handle: EVT_HANDLE
 ) -> u32 {
     if action != EvtSubscribeActionDeliver {
@@ -96,12 +116,29 @@ pub extern "system" fn evt_subscribe_callback(
         return 0;
     }
 
+    let user_context: Box<&CallbackContext> = unsafe {
+        Box::from_raw(user_context as *mut _)
+    };
+
     match evt_render(event_handle) {
-        Some(xml_event) => {
-            println!("{}", xml_event);
+        Ok(xml_event) => {
+            user_context.handle_record(
+                xml_event
+            );
         },
-        None => {}
+        Err(e) => {
+            error!("Error calling evt_render(): {:?}", e);
+        }
     }
+
+    // Close the EVT_HANDLE
+    unsafe {
+        EvtClose(event_handle);
+    }
+
+    // Prevent double-free of reference
+    // If you dont do this, you will get an app crash
+    Box::leak(user_context);
 
     return 0;
 }
@@ -119,8 +156,10 @@ pub extern "system" fn evt_subscribe_callback(
 /// );
 pub fn register_event_callback(
         channel_path: &String, 
-        query: Option<String>
-) {
+        query: Option<String>,
+        flags: Option<u32>,
+        context: &CallbackContext
+) -> Result<EvtHandle, WinThingError> {
     // Currently we are not implementing sessions
     let session = null_mut();
     // This is null becuase we are using a callback
@@ -138,24 +177,45 @@ pub fn register_event_callback(
     let mut query_str_u16 : Vec<u16> = query_str.encode_utf16().collect();
     query_str_u16.resize(query_str.len() + 1, 0);
 
+    let context = Box::into_raw(
+        Box::from(context)
+    );
+
     // Bookmarks are not currently implemented
     let bookmark = null_mut();
 
-    let context = null_mut();
-
-    let flags = EvtSubscribeToFutureEvents;
+    let flags = match flags {
+        Some(f) => f,
+        None => EvtSubscribeToFutureEvents
+    };
 
     // This handle will need to be closed when the subscription is done...
-    let _subscription_handle = unsafe {
+    let subscription_handle = unsafe {
         EvtSubscribe(
             session,
             signal_event,
             channel_path_u16.as_ptr(),
             query_str_u16.as_ptr(),
             bookmark,
-            context,
+            context as *mut c_void,
             Some(evt_subscribe_callback),
             flags
         )
     };
+
+    if subscription_handle.is_null() {
+        let last_error = unsafe {
+            GetLastError()
+        };
+
+        return Err(WinThingError::os_error(
+            last_error as i32
+        ));
+    }
+
+    Ok(
+        EvtHandle(
+            subscription_handle
+        )
+    )
 }
