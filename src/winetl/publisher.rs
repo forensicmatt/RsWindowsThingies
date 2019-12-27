@@ -8,7 +8,40 @@ use crate::winevt::wevtapi::evt_open_publisher_enum;
 use crate::winevt::wevtapi::evt_next_publisher_id;
 
 
-const PUBLISHER_METADATA: [(&str, u32); 30] = [
+const PUBLISHER_META_REFERENCES: [(&str, u32); 5] = [
+    ("EvtPublisherMetadataChannelReferencePath", EvtPublisherMetadataChannelReferencePath),
+    ("EvtPublisherMetadataChannelReferenceIndex", EvtPublisherMetadataChannelReferenceIndex),
+    ("EvtPublisherMetadataChannelReferenceID", EvtPublisherMetadataChannelReferenceID),
+    ("EvtPublisherMetadataChannelReferenceFlags", EvtPublisherMetadataChannelReferenceFlags),
+    ("EvtPublisherMetadataChannelReferenceMessageID", EvtPublisherMetadataChannelReferenceMessageID)
+];
+
+const PUBLISHER_META_TASKS: [(&str, u32); 4] = [
+    ("EvtPublisherMetadataTaskName", EvtPublisherMetadataTaskName),
+    ("EvtPublisherMetadataTaskEventGuid", EvtPublisherMetadataTaskEventGuid),
+    ("EvtPublisherMetadataTaskValue", EvtPublisherMetadataTaskValue),
+    ("EvtPublisherMetadataTaskMessageID", EvtPublisherMetadataTaskMessageID)
+];
+
+const PUBLISHER_META_LEVELS: [(&str, u32); 3] = [
+    ("EvtPublisherMetadataLevelName", EvtPublisherMetadataLevelName),
+    ("EvtPublisherMetadataLevelValue", EvtPublisherMetadataLevelValue),
+    ("EvtPublisherMetadataLevelMessageID", EvtPublisherMetadataLevelMessageID)
+];
+
+const PUBLISHER_META_OPCODES: [(&str, u32); 3] = [
+    ("EvtPublisherMetadataOpcodeName", EvtPublisherMetadataOpcodeName),
+    ("EvtPublisherMetadataOpcodeValue", EvtPublisherMetadataOpcodeValue),
+    ("EvtPublisherMetadataOpcodeMessageID", EvtPublisherMetadataOpcodeMessageID)
+];
+
+const PUBLISHER_META_KEYWORDS: [(&str, u32); 3] = [
+    ("EvtPublisherMetadataKeywordName", EvtPublisherMetadataKeywordName),
+    ("EvtPublisherMetadataKeywordValue", EvtPublisherMetadataKeywordValue),
+    ("EvtPublisherMetadataKeywordMessageID", EvtPublisherMetadataKeywordMessageID)
+];
+
+const PUBLISHER_METADATA: [(&str, u32); 12] = [
     ("EvtPublisherMetadataPublisherGuid", EvtPublisherMetadataPublisherGuid),
     ("EvtPublisherMetadataResourceFilePath", EvtPublisherMetadataResourceFilePath),
     ("EvtPublisherMetadataParameterFilePath", EvtPublisherMetadataParameterFilePath),
@@ -16,28 +49,10 @@ const PUBLISHER_METADATA: [(&str, u32); 30] = [
     ("EvtPublisherMetadataHelpLink", EvtPublisherMetadataHelpLink),
     ("EvtPublisherMetadataPublisherMessageID", EvtPublisherMetadataPublisherMessageID),
     ("EvtPublisherMetadataChannelReferences", EvtPublisherMetadataChannelReferences),
-    ("EvtPublisherMetadataChannelReferencePath", EvtPublisherMetadataChannelReferencePath),
-    ("EvtPublisherMetadataChannelReferenceIndex", EvtPublisherMetadataChannelReferenceIndex),
-    ("EvtPublisherMetadataChannelReferenceID", EvtPublisherMetadataChannelReferenceID),
-    ("EvtPublisherMetadataChannelReferenceFlags", EvtPublisherMetadataChannelReferenceFlags),
-    ("EvtPublisherMetadataChannelReferenceMessageID", EvtPublisherMetadataChannelReferenceMessageID),
     ("EvtPublisherMetadataLevels", EvtPublisherMetadataLevels),
-    ("EvtPublisherMetadataLevelName", EvtPublisherMetadataLevelName),
-    ("EvtPublisherMetadataLevelValue", EvtPublisherMetadataLevelValue),
-    ("EvtPublisherMetadataLevelMessageID", EvtPublisherMetadataLevelMessageID),
     ("EvtPublisherMetadataTasks", EvtPublisherMetadataTasks),
-    ("EvtPublisherMetadataTaskName", EvtPublisherMetadataTaskName),
-    ("EvtPublisherMetadataTaskEventGuid", EvtPublisherMetadataTaskEventGuid),
-    ("EvtPublisherMetadataTaskValue", EvtPublisherMetadataTaskValue),
-    ("EvtPublisherMetadataTaskMessageID", EvtPublisherMetadataTaskMessageID),
     ("EvtPublisherMetadataOpcodes", EvtPublisherMetadataOpcodes),
-    ("EvtPublisherMetadataOpcodeName", EvtPublisherMetadataOpcodeName),
-    ("EvtPublisherMetadataOpcodeValue", EvtPublisherMetadataOpcodeValue),
-    ("EvtPublisherMetadataOpcodeMessageID", EvtPublisherMetadataOpcodeMessageID),
     ("EvtPublisherMetadataKeywords", EvtPublisherMetadataKeywords),
-    ("EvtPublisherMetadataKeywordName", EvtPublisherMetadataKeywordName),
-    ("EvtPublisherMetadataKeywordValue", EvtPublisherMetadataKeywordValue),
-    ("EvtPublisherMetadataKeywordMessageID", EvtPublisherMetadataKeywordMessageID),
     ("EvtPublisherMetadataPropertyIdEND", EvtPublisherMetadataPropertyIdEND)
 ];
 
@@ -68,22 +83,29 @@ impl PublisherMeta {
         let mut mapping = json!({});
 
         for (key, id) in &PUBLISHER_METADATA {
-            let variant = match evt_get_publisher_metadata_property(
-                &self.handle, *id
-            ) {
-                Ok(v) => v,
-                Err(e) => {
-                    error!("Error getting metadata property {}: {:?}", key, e);
-                    continue;
-                }
-            };
-
-            match variant.get_json_value() {
-                Ok(v) => {
-                    mapping[key] = v;
+            match id {
+                &EvtPublisherMetadataPropertyIdEND => {
+                    break;
                 },
-                Err(e) => {
-                    error!("Error getting variant value: {:?}", e);
+                _ => {
+                    let variant = match evt_get_publisher_metadata_property(
+                        &self.handle, *id
+                    ) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            error!("Error getting metadata property {}: {:?}", key, e);
+                            continue;
+                        }
+                    };
+
+                    match variant.get_json_value() {
+                        Ok(v) => {
+                            mapping[key] = v;
+                        },
+                        Err(e) => {
+                            error!("Error getting variant value: {:?}", e);
+                        }
+                    }
                 }
             }
         }
