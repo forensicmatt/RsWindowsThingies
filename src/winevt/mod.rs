@@ -8,7 +8,7 @@ use winapi::um::winevt::EVT_HANDLE;
 
 
 #[derive(Debug)]
-pub struct EvtHandle(EVT_HANDLE);
+pub struct EvtHandle(pub EVT_HANDLE);
 impl Drop for EvtHandle {
     fn drop(&mut self) {
         unsafe {

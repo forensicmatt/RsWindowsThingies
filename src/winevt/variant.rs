@@ -1,5 +1,6 @@
 use hex;
 use std::fmt;
+use serde::Serialize;
 use serde_json::Value;
 use serde_json::Number;
 use winapi::shared::guiddef::GUID;
@@ -7,7 +8,8 @@ use winapi::um::winevt::*;
 use crate::errors::WinThingError;
 
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
 pub enum VariantValue {
     Null,
     String(String),
@@ -72,13 +74,16 @@ impl VariantValue {
         let value = match variant.Type {
             EvtVarTypeNull => VariantValue::Null,
             EvtVarTypeString => {
-                let slice : &[u16];
+                let slice: &[u16];
                 unsafe {
                     let ptr = variant.u.StringVal();
                     let len = (0..).take_while(
                         |&i| *ptr.offset(i) != 0
                     ).count();
-                    slice = std::slice::from_raw_parts(*ptr, len);
+                    slice = std::slice::from_raw_parts(
+                        *ptr, 
+                        len
+                    );
                 }
 
                 VariantValue::String(
@@ -268,6 +273,10 @@ impl EvtVariant {
             &self.0
         )
     }
+
+    // pub fn is_null(&self) -> bool {
+        
+    // }
 
     pub fn get_json_value(&self) -> Result<Value, WinThingError> {
         Ok(

@@ -6,7 +6,6 @@ use winapi::um::winevt::EvtClose;
 use std::os::windows::prelude::*;
 use winapi::shared::minwindef::{DWORD};
 use winapi::um::errhandlingapi::GetLastError;
-use winapi::shared::winerror::ERROR_SUCCESS;
 use winapi::shared::winerror::ERROR_NO_MORE_ITEMS;
 use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
 use crate::winevt::EvtHandle;
@@ -355,8 +354,6 @@ pub fn evt_open_publisher_metadata(
         None => null_mut()
     };
 
-    println!("{:?}", &unsafe{*publisher_id});
-
     let meta_handle = unsafe {
         EvtOpenPublisherMetadata(
             session,
@@ -454,6 +451,217 @@ pub fn evt_get_publisher_metadata_property(
         Err(
             WinThingError::unhandled(
                 "Expected Error on first EvtGetPublisherMetadataProperty call.".to_owned()
+            )
+        )
+    }
+}
+
+
+/// BOOL EvtGetObjectArraySize(
+///   EVT_OBJECT_ARRAY_PROPERTY_HANDLE ObjectArray,
+///   PDWORD                           ObjectArraySize
+/// );
+pub fn evt_get_object_array_size(
+    object_array: &EvtHandle
+) -> Result<u32, WinThingError> {
+    let mut object_array_size: DWORD = 0;
+
+    let result = unsafe {
+        EvtGetObjectArraySize(
+            object_array.0,
+            &mut object_array_size
+        )
+    };
+
+    if result == 0 {
+        return Err(
+            WinThingError::from_windows_last_error()
+        );
+    }
+
+    Ok(object_array_size)
+}
+
+
+/// BOOL EvtGetObjectArrayProperty(
+///   EVT_OBJECT_ARRAY_PROPERTY_HANDLE ObjectArray,
+///   DWORD                            PropertyId,
+///   DWORD                            ArrayIndex,
+///   DWORD                            Flags,
+///   DWORD                            PropertyValueBufferSize,
+///   PEVT_VARIANT                     PropertyValueBuffer,
+///   PDWORD                           PropertyValueBufferUsed
+/// );
+pub fn evt_get_object_array_property(
+    object_array: &EvtHandle,
+    index: DWORD,
+    property_id: EVT_PUBLISHER_METADATA_PROPERTY_ID
+) -> Result<EvtVariant, WinThingError> {
+    let mut buffer_used: DWORD = 0;
+
+    let result = unsafe {
+        EvtGetObjectArrayProperty(
+            object_array.0,
+            property_id,
+            index,
+            0,
+            0,
+            null_mut(),
+            &mut buffer_used
+        )
+    };
+
+    // We expect this to fail but return the buffer size needed.
+    if result == 0 {
+        let last_error: DWORD = unsafe {
+            GetLastError()
+        };
+
+        if last_error == ERROR_INSUFFICIENT_BUFFER {
+            let mut buffer: Vec<u8> = vec![0; buffer_used as usize];
+
+            let result = unsafe {
+                EvtGetObjectArrayProperty(
+                    object_array.0,
+                    property_id,
+                    index,
+                    0,
+                    buffer.len() as _,
+                    buffer.as_mut_ptr() as *mut EVT_VARIANT,
+                    &mut buffer_used
+                )
+            };
+
+            if result != 0 {
+                let variant: EVT_VARIANT = unsafe {
+                    std::ptr::read(
+                        buffer.as_ptr() as *const _
+                    ) 
+                };
+
+                return Ok(
+                    EvtVariant(
+                        variant
+                    )
+                );
+            }
+            else {
+                return Err(
+                    WinThingError::from_windows_last_error()
+                );
+            }
+        }
+        else {
+            return Err(
+                WinThingError::from_windows_error_code(
+                    last_error
+                )
+            );
+        }
+    }
+    else {
+        Err(
+            WinThingError::unhandled(
+                "Expected Error on first EvtGetObjectArrayProperty call.".to_owned()
+            )
+        )
+    }
+}
+
+
+/// BOOL EvtFormatMessage(
+///   EVT_HANDLE   PublisherMetadata,
+///   EVT_HANDLE   Event,
+///   DWORD        MessageId,
+///   DWORD        ValueCount,
+///   PEVT_VARIANT Values,
+///   DWORD        Flags,
+///   DWORD        BufferSize,
+///   LPWSTR       Buffer,
+///   PDWORD       BufferUsed
+/// );
+pub fn evt_format_message(
+    publisher_metadata: Option<&EvtHandle>,
+    event: Option<&EvtHandle>,
+    message_id: DWORD
+) -> Result<String, WinThingError> {
+    let mut buffer_used: DWORD = 0;
+
+    let publisher_metadata = match publisher_metadata {
+        Some(h) => h.0,
+        None => null_mut(),
+    };
+
+    let event = match event {
+        Some(h) => h.0,
+        None => null_mut(),
+    };
+
+    let flags = EvtFormatMessageId;
+
+    let result = unsafe {
+        EvtFormatMessage(
+            publisher_metadata,
+            event,
+            message_id,
+            0,
+            null_mut(),
+            flags,
+            0,
+            null_mut(),
+            &mut buffer_used
+        )
+    };
+
+    // We expect this to fail but return the buffer size needed.
+    if result == 0 {
+        let last_error: DWORD = unsafe {
+            GetLastError()
+        };
+
+        if last_error == ERROR_INSUFFICIENT_BUFFER {
+            let mut buffer: Vec<u16> = vec![0; buffer_used as usize];
+
+            let result = unsafe {
+                EvtFormatMessage(
+                    publisher_metadata,
+                    event,
+                    message_id,
+                    0,
+                    null_mut(),
+                    flags,
+                    buffer.len() as _,
+                    buffer.as_ptr() as _,
+                    &mut buffer_used
+                )
+            };
+
+            if result != 0 {
+                // Remove terminating null
+                let message_string = OsString::from_wide(
+                    &buffer[..buffer.len()-1]
+                ).to_string_lossy().to_string();
+
+                return Ok(message_string);
+            }
+            else {
+                return Err(
+                    WinThingError::from_windows_last_error()
+                );
+            }
+        }
+        else {
+            return Err(
+                WinThingError::from_windows_error_code(
+                    last_error
+                )
+            );
+        }
+    }
+    else {
+        Err(
+            WinThingError::unhandled(
+                "Expected Error on first EvtFormatMessage call.".to_owned()
             )
         )
     }

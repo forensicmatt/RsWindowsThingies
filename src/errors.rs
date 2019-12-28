@@ -3,6 +3,7 @@ use std::io::Error as IoError;
 use minidom::Error as MinidomError;
 use std::string::FromUtf8Error;
 use std::string::FromUtf16Error;
+use serde_json::Error as SerdeJsonError;
 use winapi::shared::ntdef::WCHAR;
 use winapi::um::winbase::{
     FormatMessageW, 
@@ -22,7 +23,8 @@ pub enum ErrorType {
     UnhandledVariant,
     OsError,
     UnhandledLogic,
-    WindowsError
+    WindowsError,
+    SerdeJsonError
 }
 
 #[derive(Debug)]
@@ -128,6 +130,15 @@ impl From<MinidomError> for WinThingError {
         Self {
             message: format!("{}", err),
             kind: ErrorType::XmlError,
+        }
+    }
+}
+
+impl From<SerdeJsonError> for WinThingError {
+    fn from(err: SerdeJsonError) -> Self {
+        Self {
+            message: format!("{}", err),
+            kind: ErrorType::SerdeJsonError,
         }
     }
 }
