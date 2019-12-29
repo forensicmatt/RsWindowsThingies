@@ -171,7 +171,7 @@ fn get_text_block(meta: &PublisherMeta) -> String {
     message.push_str(
         &format!("--- Tasks ---\n")
     );
-    match meta.get_metadata_levels() {
+    match meta.get_metadata_tasks() {
         Ok(metadata) => {
             for meta_item in metadata.0 {
                 message.push_str(
