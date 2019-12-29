@@ -23,7 +23,9 @@ use crate::winevt::callback::CallbackContext;
 ///   PDWORD     BufferUsed,
 ///   PDWORD     PropertyCount
 /// );
-pub fn evt_render(event_handle: EVT_HANDLE) -> Result<String, WinThingError> {
+pub fn evt_render(
+    event_handle: EVT_HANDLE
+) -> Result<String, WinThingError> {
     let mut buffer_used: DWORD = 0;
     let mut property_count: DWORD = 0;
 
@@ -223,7 +225,9 @@ pub fn register_event_callback(
 ///   EVT_HANDLE Session,
 ///   DWORD      Flags
 /// );
-pub fn evt_open_publisher_enum(session: &Option<EvtHandle>) -> Result<EvtHandle, WinThingError> {
+pub fn evt_open_publisher_enum(
+    session: &Option<EvtHandle>
+) -> Result<EvtHandle, WinThingError> {
     let session = match session {
         Some(s) => s.0,
         None => null_mut()
@@ -254,7 +258,9 @@ pub fn evt_open_publisher_enum(session: &Option<EvtHandle>) -> Result<EvtHandle,
 ///   LPWSTR     PublisherIdBuffer,
 ///   PDWORD     PublisherIdBufferUsed
 /// );
-pub fn evt_next_publisher_id(publisher_enum: &EvtHandle) -> Result<Option<String>, WinThingError> {
+pub fn evt_next_publisher_id(
+    publisher_enum: &EvtHandle
+) -> Result<Option<String>, WinThingError> {
     let mut buffer_used: DWORD = 0;
 
     let result = unsafe {
@@ -284,9 +290,8 @@ pub fn evt_next_publisher_id(publisher_enum: &EvtHandle) -> Result<Option<String
             };
 
             if result != 0 {
-                // Leave off the null byte
                 let provider_name = OsString::from_wide(
-                    &buffer[..buffer.len()-1]
+                    &buffer[..buffer_used as usize - 1]
                 ).to_string_lossy().to_string();
 
                 return Ok(Some(provider_name));
@@ -335,9 +340,11 @@ pub fn evt_open_publisher_metadata(
         None => null_mut()
     };
 
+
+    let mut string_u16: Vec<u16>;
     let publisher_id = match publisher_id {
         Some(s) => {
-            let mut string_u16: Vec<u16> = s.encode_utf16().collect();
+            string_u16 = s.encode_utf16().collect();
             // Needs to be null terminated
             string_u16.resize(s.len() + 1, 0);
             string_u16.as_ptr()
@@ -598,7 +605,6 @@ pub fn evt_format_message(
     };
 
     let flags = EvtFormatMessageId;
-
     let result = unsafe {
         EvtFormatMessage(
             publisher_metadata,
@@ -620,7 +626,7 @@ pub fn evt_format_message(
         };
 
         if last_error == ERROR_INSUFFICIENT_BUFFER {
-            let mut buffer: Vec<u16> = vec![0; buffer_used as usize];
+            let buffer: Vec<u16> = vec![0; buffer_used as usize];
 
             let result = unsafe {
                 EvtFormatMessage(
@@ -639,7 +645,7 @@ pub fn evt_format_message(
             if result != 0 {
                 // Remove terminating null
                 let message_string = OsString::from_wide(
-                    &buffer[..buffer.len()-1]
+                    &buffer[..buffer_used as usize - 1]
                 ).to_string_lossy().to_string();
 
                 return Ok(message_string);

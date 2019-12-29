@@ -2,7 +2,9 @@ use hex;
 use std::fmt;
 use serde::Serialize;
 use serde_json::Value;
+use std::ffi::OsString;
 use serde_json::Number;
+use std::os::windows::prelude::*;
 use winapi::shared::guiddef::GUID;
 use winapi::um::winevt::*;
 use crate::errors::WinThingError;
@@ -86,11 +88,11 @@ impl VariantValue {
                     );
                 }
 
-                VariantValue::String(
-                    String::from_utf16(
-                        slice
-                    )?
-                )
+                let string = OsString::from_wide(
+                    &slice[..]
+                ).to_string_lossy().to_string();
+
+                VariantValue::String(string)
             },
             EvtVarTypeAnsiString => {
                 let slice : &[u8];
@@ -264,6 +266,7 @@ impl fmt::Display for VariantValue {
     }
 }
 
+
 pub struct EvtVariant(
     pub EVT_VARIANT
 );
@@ -273,10 +276,6 @@ impl EvtVariant {
             &self.0
         )
     }
-
-    // pub fn is_null(&self) -> bool {
-        
-    // }
 
     pub fn get_json_value(&self) -> Result<Value, WinThingError> {
         Ok(

@@ -9,6 +9,11 @@ use winapi::um::winevt::EVT_HANDLE;
 
 #[derive(Debug)]
 pub struct EvtHandle(pub EVT_HANDLE);
+impl EvtHandle {
+    pub fn is_null(&self) -> bool {
+        self.0.is_null()
+    }
+}
 impl Drop for EvtHandle {
     fn drop(&mut self) {
         unsafe {

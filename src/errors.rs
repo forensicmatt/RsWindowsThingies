@@ -29,8 +29,8 @@ pub enum ErrorType {
 
 #[derive(Debug)]
 pub struct WinThingError {
-    message: String,
-    kind: ErrorType
+    pub message: String,
+    pub kind: ErrorType
 }
 
 impl WinThingError {
