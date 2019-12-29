@@ -43,6 +43,13 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(debug)
 }
 
+fn get_message_desc(message: Option<String>) -> String {
+    match message {
+        Some(s) => format!("[{}]", s),
+        None => "".to_string()
+    }
+}
+
 fn get_text_block(meta: &PublisherMeta) -> String {
     let mut message: String;
     let mut temp: String;
@@ -92,10 +99,10 @@ fn get_text_block(meta: &PublisherMeta) -> String {
             for meta_item in metadata.0 {
                 message.push_str(
                     &format!(
-                        "{:016X}: {} [{}]\n", 
+                        "{:016X}: {} {}\n", 
                         meta_item.index.to_string().parse::<u64>().expect("Error parsing id"),
                         meta_item.path.to_string(),
-                        meta_item.message.unwrap_or("".to_string())
+                        get_message_desc(meta_item.message)
                     )
                 );
             }
@@ -113,10 +120,10 @@ fn get_text_block(meta: &PublisherMeta) -> String {
             for meta_item in metadata.0 {
                 message.push_str(
                     &format!(
-                        "{:016X}: {} [{}]\n", 
+                        "{:016X}: {} {}\n", 
                         meta_item.value.to_string().parse::<u64>().expect("Error parsing id"),
                         meta_item.name.to_string(),
-                        meta_item.message.unwrap_or("".to_string())
+                        get_message_desc(meta_item.message)
                     )
                 );
             }
@@ -134,10 +141,10 @@ fn get_text_block(meta: &PublisherMeta) -> String {
             for meta_item in metadata.0 {
                 message.push_str(
                     &format!(
-                        "{:016X}: {} [{}]\n", 
+                        "{:016X}: {} {}\n", 
                         meta_item.value.to_string().parse::<u64>().expect("Error parsing id"),
                         meta_item.name.to_string(),
-                        meta_item.message.unwrap_or("".to_string())
+                        get_message_desc(meta_item.message)
                     )
                 );
             }
@@ -155,10 +162,10 @@ fn get_text_block(meta: &PublisherMeta) -> String {
             for meta_item in metadata.0 {
                 message.push_str(
                     &format!(
-                        "{:016X}: {} [{}]\n", 
+                        "{:016X}: {} {}\n", 
                         meta_item.value.to_string().parse::<u64>().expect("Error parsing id"),
                         meta_item.name.to_string(),
-                        meta_item.message.unwrap_or("".to_string())
+                        get_message_desc(meta_item.message)
                     )
                 );
             }
@@ -176,10 +183,10 @@ fn get_text_block(meta: &PublisherMeta) -> String {
             for meta_item in metadata.0 {
                 message.push_str(
                     &format!(
-                        "{:016X}: {} [{}]\n", 
+                        "{:016X}: {} {}\n", 
                         meta_item.value.to_string().parse::<u64>().expect("Error parsing id"),
                         meta_item.name.to_string(),
-                        meta_item.message.unwrap_or("".to_string())
+                        get_message_desc(meta_item.message)
                     )
                 );
             }
