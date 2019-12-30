@@ -72,7 +72,8 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
 fn get_query_list_from_system(context: &CallbackContext, flags: Option<u32>) -> Vec<ChannelSubscription> {
     let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
     // Get a list off all the channels
-    let channel_list = get_channel_name_list();
+    let channel_list = get_channel_name_list(&None)
+        .expect("Error getting channel list");
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel

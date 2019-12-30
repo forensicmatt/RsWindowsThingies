@@ -1,6 +1,10 @@
 #[macro_use] extern crate serde_json;
 use clap::{App, Arg};
 use std::process::exit;
+use rswinthings::utils::cli::{
+    add_session_options_to_app,
+    get_session_from_matches
+};
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::winevt::channels::ChannelConfig;
 use rswinthings::winevt::channels::get_channel_name_list;
@@ -25,12 +29,15 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .possible_values(&["Off", "Error", "Warn", "Info", "Debug", "Trace"])
         .help("Debug level to use.");
 
-    App::new("print_channels")
+    let app = App::new("print_channels")
         .version(VERSION)
         .author("Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>")
         .about("Print Channel Propperties.")
         .arg(format)
-        .arg(debug)
+        .arg(debug);
+    
+    // Add session arguments to app
+    add_session_options_to_app(app)
 }
 
 
@@ -53,7 +60,6 @@ fn print_jsonl_value(config_value: serde_json::Value) {
     println!("{}", config_value.to_string());
 }
 
-
 fn main() {
     let app = make_app();
     let options = app.get_matches();
@@ -71,8 +77,17 @@ fn main() {
         None => "text"
     };
 
+    let session = match get_session_from_matches(
+        &options
+    ).expect("Error getting session from options") {
+        Some(s) => Some(s.0),
+        None => None
+    };
+
     // Get list of channel names
-    let channels = get_channel_name_list();
+    let channels = get_channel_name_list(&session)
+        .expect("Could not get channel name list");
+
     for channel in channels {
         // Get the channel config for this channel name
         let channel_config = match ChannelConfig::new(channel.clone()) {

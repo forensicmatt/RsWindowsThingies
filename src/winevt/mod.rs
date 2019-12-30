@@ -3,6 +3,7 @@ pub mod variant;
 pub mod wevtapi;
 pub mod callback;
 pub mod subscription;
+pub mod session;
 use winapi::um::winevt::EvtClose;
 use winapi::um::winevt::EVT_HANDLE;
 

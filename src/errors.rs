@@ -24,7 +24,8 @@ pub enum ErrorType {
     OsError,
     UnhandledLogic,
     WindowsError,
-    SerdeJsonError
+    SerdeJsonError,
+    IoError
 }
 
 #[derive(Debug)]
@@ -103,6 +104,15 @@ impl WinThingError {
         Self {
             message: error.to_string(),
             kind: ErrorType::OsError
+        }
+    }
+}
+
+impl From<IoError> for WinThingError {
+    fn from(err: IoError) -> Self {
+        Self {
+            message: format!("{}", err),
+            kind: ErrorType::IoError,
         }
     }
 }

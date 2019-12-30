@@ -226,17 +226,14 @@ impl ChannelConfig {
 }
 
 
-pub fn get_channel_name_list() -> Vec<String> {
+pub fn get_channel_name_list(
+    session: &Option<EvtHandle>
+) -> Result<Vec<String>, WinThingError> {
     let mut channel_name_list: Vec<String> = Vec::new();
 
-    let channel_enum_handle = unsafe {
-        EvtHandle(
-            EvtOpenChannelEnum(
-                null_mut(),
-                0
-            )
-        )
-    };
+    let channel_enum_handle = evt_open_channel_enum(
+        session
+    )?;
 
     loop {
         match evt_next_channel_id(channel_enum_handle.0) {
@@ -245,7 +242,38 @@ pub fn get_channel_name_list() -> Vec<String> {
         }
     }
 
-    channel_name_list
+    Ok(channel_name_list)
+}
+
+
+/// EVT_HANDLE EvtOpenChannelEnum(
+///   EVT_HANDLE Session,
+///   DWORD      Flags
+/// );
+pub fn evt_open_channel_enum(
+    session: &Option<EvtHandle>
+) -> Result<EvtHandle, WinThingError> {
+    let session = match session {
+        Some(s) => s.0,
+        None => null_mut()
+    };
+
+    let enum_handle = unsafe {
+        EvtOpenChannelEnum(
+            session,
+            0
+        )
+    };
+
+    if enum_handle.is_null() {
+        return Err(
+            WinThingError::from_windows_last_error()
+        );
+    }
+
+    Ok(
+        EvtHandle(enum_handle)
+    )
 }
 
 
@@ -354,7 +382,12 @@ fn evt_open_channel_config(channel_path: &String) -> Result<EvtHandle, WinThingE
 }
 
 
-/// wrapper for EvtNextChannelPath
+/// BOOL EvtNextChannelPath(
+///   EVT_HANDLE ChannelEnum,
+///   DWORD      ChannelPathBufferSize,
+///   LPWSTR     ChannelPathBuffer,
+///   PDWORD     ChannelPathBufferUsed
+/// );
 fn evt_next_channel_id(channel_enum_handle: EVT_HANDLE) -> Option<String> {
     let mut buffer_used: DWORD = 0;
 
