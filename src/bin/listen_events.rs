@@ -23,7 +23,7 @@ use rswinthings::utils::cli::{
 use rswinthings::winevt::EvtHandle;
 
 
-static VERSION: &'static str = "0.2.0";
+static VERSION: &'static str = "0.3.0";
 static DESCRIPTION: &'static str = r"
 Event listener written in Rust. Output is JSONL.
 

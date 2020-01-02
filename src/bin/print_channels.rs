@@ -9,7 +9,7 @@ use rswinthings::utils::debug::set_debug_level;
 use rswinthings::winevt::channels::ChannelConfig;
 use rswinthings::winevt::channels::get_channel_name_list;
 
-static VERSION: &'static str = "0.1.0";
+static VERSION: &'static str = "0.2.0";
 
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {

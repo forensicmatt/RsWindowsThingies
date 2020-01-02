@@ -10,7 +10,7 @@ Note: It takes a minute for the event logs to catch up. I need to implement more
 When the "Waiting for new events..." message appears, you know it is actively listening.
 
 ```
-listen_events 0.2.0
+listen_events 0.3.0
 Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>
 
 Event listener written in Rust. Output is JSONL.
@@ -31,7 +31,13 @@ FLAGS:
 OPTIONS:
     -c, --channel <CHANNEL>...    Specific Channel to listen to.
     -d, --debug <DEBUG>           Debug level to use. [possible values: Off, Error, Warn, Info, Debug, Trace]
+        --domain <DOMAIN>         The domain to which the user account belongs. Optional.
     -f, --format <FORMAT>         Output format to use. [defaults to jsonl] [possible values: xml, jsonl]
+        --server <SERVER>         The name of the remote computer to connect to.
+        --sflag <SFLAG>           The authentication method to use to authenticate the user when connecting to the
+                                  remote computer. [possible values: Default, Negotiate, Kerberos, NTLM]
+        --user <USER>             The user name to use to connect to the remote computer.
+
 ```
 
 ## print_channels
@@ -41,7 +47,7 @@ are used in helping establish what channels to monior for in the event monitorin
 
 ### Usage
 ```
-print_channels 0.1.0
+print_channels 0.2.0
 Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>
 Print Channel Propperties.
 
@@ -54,7 +60,12 @@ FLAGS:
 
 OPTIONS:
     -d, --debug <DEBUG>      Debug level to use. [possible values: Off, Error, Warn, Info, Debug, Trace]
+        --domain <DOMAIN>    The domain to which the user account belongs. Optional.
     -f, --format <FORMAT>    Output format. (defaults to text) [possible values: text, jsonl]
+        --server <SERVER>    The name of the remote computer to connect to.
+        --sflag <SFLAG>      The authentication method to use to authenticate the user when connecting to the remote
+                             computer. [possible values: Default, Negotiate, Kerberos, NTLM]
+        --user <USER>        The user name to use to connect to the remote computer.
 
 ```
 
@@ -106,8 +117,13 @@ FLAGS:
 
 OPTIONS:
     -d, --debug <DEBUG>             Debug level to use. [possible values: Off, Error, Warn, Info, Debug, Trace]
+        --domain <DOMAIN>           The domain to which the user account belongs. Optional.
     -f, --format <FORMAT>           Output format. (defaults to text) [possible values: text, jsonl]
     -p, --provider <PROVIDER>...    Specific Provider.
+        --server <SERVER>           The name of the remote computer to connect to.
+        --sflag <SFLAG>             The authentication method to use to authenticate the user when connecting to the
+                                    remote computer. [possible values: Default, Negotiate, Kerberos, NTLM]
+        --user <USER>               The user name to use to connect to the remote computer.
 ```
 
 ### Example

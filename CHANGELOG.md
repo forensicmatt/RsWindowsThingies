@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0]
 ### Added
+- Remote session support
 - `print_publishers` tool
 
 ## [0.3.0] - 2019-12-23
