@@ -6,6 +6,7 @@ pub mod subscription;
 pub mod session;
 use winapi::um::winevt::EvtClose;
 use winapi::um::winevt::EVT_HANDLE;
+use crate::errors::WinThingError;
 
 
 #[derive(Debug)]
@@ -17,10 +18,15 @@ impl EvtHandle {
 }
 impl Drop for EvtHandle {
     fn drop(&mut self) {
-        unsafe {
+        let result = unsafe {
             EvtClose(
                 self.0
-            );
+            )
+        };
+
+        if result == 0 {
+            let error = WinThingError::from_windows_last_error();
+            eprintln!("Error calling EvtClose on EVT_HANDLE: {}", error.message);
         }
     }
 }

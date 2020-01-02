@@ -159,13 +159,17 @@ pub extern "system" fn evt_subscribe_callback(
 ///   DWORD                  Flags
 /// );
 pub fn register_event_callback(
+        session: &Option<EvtHandle>,
         channel_path: &String, 
         query: Option<String>,
         flags: Option<u32>,
         context: &CallbackContext
 ) -> Result<EvtHandle, WinThingError> {
-    // Currently we are not implementing sessions
-    let session = null_mut();
+    let session = match session {
+        Some(s) => s.0,
+        None => null_mut()
+    };
+    
     // This is null becuase we are using a callback
     let signal_event = null_mut();
 
