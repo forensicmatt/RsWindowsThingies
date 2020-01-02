@@ -10,6 +10,7 @@ fn main() {
 
     // Create subscription
     let _subscription_security = ChannelSubscription::new(
+        &None,
         "Security".to_owned(),
         Some("*".to_owned()),
         None,
@@ -18,6 +19,7 @@ fn main() {
 
     // Create subscription
     let _subscription_power = ChannelSubscription::new(
+        &None,
         "Windows PowerShell".to_owned(),
         Some("*".to_owned()),
         None,
