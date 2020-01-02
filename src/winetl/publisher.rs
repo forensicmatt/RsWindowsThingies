@@ -635,7 +635,7 @@ pub struct PublisherMeta {
 }
 
 impl PublisherMeta {
-    pub fn new(name: String) -> Result<Self, WinThingError> {
+    pub fn new(session: &Option<EvtHandle>, name: String) -> Result<Self, WinThingError> {
         let (publisher_id, logfile_path) = match Path::new(&name).is_file() {
             true => {
                 debug!("{} is a file.", name);
@@ -645,7 +645,7 @@ impl PublisherMeta {
         };
 
         let handle = evt_open_publisher_metadata(
-            &None,
+            &session,
             publisher_id,
             logfile_path
         )?;
@@ -927,6 +927,7 @@ impl Iterator for PublisherEnumerator {
                     match o {
                         Some(name) => {
                             let meta = match PublisherMeta::new(
+                                &self.session,
                                 name.clone()
                             ) {
                                 Ok(m) => m,

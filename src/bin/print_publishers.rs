@@ -5,6 +5,11 @@ use winapi::um::winevt::*;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::winetl::publisher::PublisherMeta;
 use rswinthings::winetl::publisher::PublisherEnumerator;
+use rswinthings::utils::cli::{
+    add_session_options_to_app,
+    get_session_from_matches
+};
+use rswinthings::winevt::EvtHandle;
 
 static VERSION: &'static str = "0.1.0";
 
@@ -34,13 +39,16 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .possible_values(&["Off", "Error", "Warn", "Info", "Debug", "Trace"])
         .help("Debug level to use.");
 
-    App::new("print_publishers")
+    let app = App::new("print_publishers")
         .version(VERSION)
         .author("Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>")
         .about("Print Publisher Propperties.")
         .arg(provider)
         .arg(format)
-        .arg(debug)
+        .arg(debug);
+
+    // Add session arguments to app
+    add_session_options_to_app(app)
 }
 
 fn get_message_desc(message: Option<String>) -> String {
@@ -208,8 +216,18 @@ fn main() {
         Some(d) => set_debug_level(d).expect(
             "Error setting debug level"
         ),
-        None => {}
+        None => set_debug_level("Error").expect(
+            "Error setting debug level"
+        )
     }
+
+    // Get Session
+    let session: Option<EvtHandle> = match get_session_from_matches(
+        &options
+    ).expect("Error getting session from options") {
+        Some(s) => Some(s.0),
+        None => None
+    };
 
     let out_format = match options.value_of("format") {
         Some(f) => f,
@@ -220,6 +238,7 @@ fn main() {
         Some(p_list) => {
             for value in p_list {
                 let publisher_meta = PublisherMeta::new(
+                    &session,
                     value.to_string()
                 ).expect("Error creating PublisherMeta");
                 
@@ -246,7 +265,7 @@ fn main() {
             }
         },
         None => {
-            let enumerator = PublisherEnumerator::new(None)
+            let enumerator = PublisherEnumerator::new(session)
                 .expect("Error creating PublisherEnumerator");
 
             for publisher_meta in enumerator {
