@@ -344,7 +344,6 @@ pub fn evt_open_publisher_metadata(
         None => null_mut()
     };
 
-
     let mut string_u16: Vec<u16>;
     let publisher_id = match publisher_id {
         Some(s) => {

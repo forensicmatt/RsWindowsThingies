@@ -22,7 +22,7 @@ impl RemoteSession {
         let mut username_u16: Vec<u16>;
         let mut domain_u16: Vec<u16>;
         let mut password_u16: Vec<u16>;
-        let mut password: String;
+        let password: String;
 
         let flags = match flags {
             Some(f) => f,
