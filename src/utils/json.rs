@@ -27,11 +27,32 @@ pub fn get_difference_value(
                     path_list.push(key.to_string())
                 }
                 let path_str = path_list.join(".");
+                
                 return_val[path_str] = json!({
                     "before": v1.to_owned(),
                     "after": v2.to_owned()
                 });
             },
+            Added(keys, value) => {
+                let mut path_list: Vec<String> = Vec::new();
+                for key in keys {
+                    path_list.push(key.to_string())
+                }
+                let path_str = path_list.join(".");
+
+                return_val[path_str] = json!({
+                    "created": value.to_owned()
+                });
+            },
+            Removed(keys, value) => {
+                let mut path_list: Vec<String> = Vec::new();
+                for key in keys {
+                    path_list.push(key.to_string())
+                }
+                let path_str = path_list.join(".");
+
+                return_val[path_str] = json!("removed");
+            }
             _ => {}
         }
     }

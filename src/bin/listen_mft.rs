@@ -5,7 +5,7 @@ use clap::{App, Arg};
 use std::process::exit;
 use rswinthings::utils::json::get_difference_value;
 use rswinthings::utils::debug::set_debug_level;
-use rswinthings::mft::MftDifferencer;
+use rswinthings::mft::EntryListener;
 
 static VERSION: &'static str = "0.2.0";
 
@@ -35,10 +35,10 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
 }
 
 
-fn run(mut differencer: MftDifferencer) {
+fn run(mut listener: EntryListener) {
     eprintln!("Hit enter to print snapshot.");
 
-    let mut previous_value = differencer.get_current_value().expect("Unable to get current mft entry value");
+    let mut previous_value = listener.get_current_value().expect("Unable to get current mft entry value");
     println!("{}", previous_value.to_string());
 
     loop {
@@ -49,7 +49,7 @@ fn run(mut differencer: MftDifferencer) {
             &mut line
         ).expect("Could not read line");
 
-        let current_value = differencer.get_current_value().expect("Unable to get current mft entry value");
+        let current_value = listener.get_current_value().expect("Unable to get current mft entry value");
 
         let difference_value = get_difference_value(
             &previous_value,
@@ -85,9 +85,9 @@ fn main() {
         }
     };
 
-    let differencer = MftDifferencer::new(
+    let listener = EntryListener::new(
         file_path
-    ).expect("Error creating MftDifferencer");
+    ).expect("Error creating EntryListener");
 
-    run(differencer);
+    run(listener);
 }
