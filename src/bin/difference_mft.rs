@@ -3,6 +3,7 @@ use std::io::stdin;
 use std::io::BufRead;
 use clap::{App, Arg};
 use std::process::exit;
+use rswinthings::utils::json::get_difference_value;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::mft::MftDifferencer;
 
@@ -37,16 +38,29 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
 fn run(mut differencer: MftDifferencer) {
     eprintln!("Hit enter to print snapshot.");
 
+    let mut previous_value = differencer.get_current_value().expect("Unable to get current mft entry value");
+    println!("{}", previous_value.to_string());
+
     loop {
         let mut line = String::new();
         let stdin_io = stdin();
-        
+
         stdin_io.lock().read_line(
             &mut line
         ).expect("Could not read line");
 
-        let value = differencer.get_current_value().expect("Unable to get current mft entry value");
-        println!("{}", value.to_string());
+        let current_value = differencer.get_current_value().expect("Unable to get current mft entry value");
+
+        let difference_value = get_difference_value(
+            &previous_value,
+            &current_value
+        );
+        // println!("previous_value: {}", previous_value.to_string());
+        // println!("current_value: {}", current_value.to_string());
+        let value_str = serde_json::to_string_pretty(&difference_value).expect("Unable to format Value");
+        println!("{}", value_str);
+
+        previous_value = current_value.to_owned();
     }
 }
 
