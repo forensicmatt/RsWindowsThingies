@@ -1,4 +1,5 @@
 use std::ptr;
+use mft::err::Error as MftError;
 use std::io::Error as IoError;
 use minidom::Error as MinidomError;
 use std::string::FromUtf8Error;
@@ -25,7 +26,8 @@ pub enum ErrorType {
     UnhandledLogic,
     WindowsError,
     SerdeJsonError,
-    IoError
+    IoError,
+    MftError
 }
 
 #[derive(Debug)]
@@ -149,6 +151,15 @@ impl From<SerdeJsonError> for WinThingError {
         Self {
             message: format!("{}", err),
             kind: ErrorType::SerdeJsonError,
+        }
+    }
+}
+
+impl From<MftError> for WinThingError {
+    fn from(err: MftError) -> Self {
+        Self {
+            message: format!("{}", err),
+            kind: ErrorType::MftError,
         }
     }
 }
