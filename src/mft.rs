@@ -1,7 +1,7 @@
 use serde_json::Value;
 use serde_json::to_value;
 use mft::entry::MftEntry;
-use mft::attribute::{MftAttribute};
+use mft::attribute::{MftAttribute, MftAttributeType};
 use crate::errors::WinThingError;
 use crate::volume::liventfs::WindowsLiveNtfs;
 use crate::file::helper::{
@@ -10,6 +10,26 @@ use crate::file::helper::{
 };
 
 
+fn get_attr_name(attribute: &MftAttributeType) -> String {
+    match attribute {
+        MftAttributeType::StandardInformation => "StandardInformation".to_string(),
+        MftAttributeType::AttributeList => "AttributeList".to_string(),
+        MftAttributeType::FileName => "FileName".to_string(),
+        MftAttributeType::ObjectId => "ObjectId".to_string(),
+        MftAttributeType::SecurityDescriptor => "SecurityDescriptor".to_string(),
+        MftAttributeType::VolumeName => "VolumeName".to_string(),
+        MftAttributeType::VolumeInformation => "VolumeInformation".to_string(),
+        MftAttributeType::DATA => "DATA".to_string(),
+        MftAttributeType::IndexRoot => "IndexRoot".to_string(),
+        MftAttributeType::IndexAllocation => "IndexAllocation".to_string(),
+        MftAttributeType::BITMAP => "BITMAP".to_string(),
+        MftAttributeType::ReparsePoint => "ReparsePoint".to_string(),
+        other => format!("Attribute: {:?}", other)
+    }
+}
+
+
+/// Generate a custom JSON view of the mft entry
 pub fn custom_entry_value(entry: MftEntry) -> Result<Value, WinThingError> {
     let mut entry_value = json!({});
     
@@ -18,11 +38,11 @@ pub fn custom_entry_value(entry: MftEntry) -> Result<Value, WinThingError> {
 
     let attributes: Vec<MftAttribute> = entry.iter_attributes().filter_map(Result::ok).collect();
     for attribute in attributes {
-        let attr_type_str = (attribute.header.type_code.clone() as u32).to_string();
+        let attr_type_str = get_attr_name(&attribute.header.type_code);
         let instance = attribute.header.instance.to_string();
 
         entry_value["attributes"][&attr_type_str] = json!({
-            instance: to_value(attribute.to_owned())?
+            instance: to_value(&attribute.to_owned())?
         });
     }
     
