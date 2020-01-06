@@ -10,16 +10,19 @@ use winapi::um::ioapiset::DeviceIoControl;
 use winapi::um::winioctl::FSCTL_GET_NTFS_FILE_RECORD;
 use winapi::um::winioctl::NTFS_FILE_RECORD_INPUT_BUFFER;
 use crate::errors::WinThingError;
-use crate::file::fileapi::get_volume_path_name;
-use crate::file::fileapi::get_file_information_by_handle;
+use crate::file::fileapi::{
+    create_file,
+    get_volume_path_name,
+    get_file_information_by_handle
+};
 
 
 /// Get the mft entry number from a given path
 /// 
 pub fn get_entry_from_path(path: &str) -> Result<u64, WinThingError> {
-    let file = File::open(path)?;
+    let file = create_file(path)?;
     let file_info = get_file_information_by_handle(
-        file.as_raw_handle() as _
+        file.0
     )?;
 
     Ok(

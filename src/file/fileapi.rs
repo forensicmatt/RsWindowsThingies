@@ -1,11 +1,78 @@
+use std::ptr::null_mut;
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use winapi::um::winnt::HANDLE;
 use winapi::shared::minwindef::DWORD;
+use winapi::um::winnt::GENERIC_READ;
+use winapi::um::fileapi::OPEN_EXISTING;
+use winapi::um::winbase::FILE_FLAG_BACKUP_SEMANTICS;
+use winapi::um::winnt::FILE_ATTRIBUTE_READONLY;
+use winapi::um::handleapi::CloseHandle;
+use winapi::um::fileapi::CreateFileW;
 use winapi::um::fileapi::GetVolumePathNameW;
 use winapi::um::fileapi::GetFileInformationByHandle;
 use winapi::um::fileapi::BY_HANDLE_FILE_INFORMATION;
+use crate::file::FileHandle;
 use crate::errors::WinThingError;
+
+
+/// BOOL CloseHandle(
+///   HANDLE hObject
+/// );
+pub fn close_handle(
+    handle: HANDLE
+) -> Result<(), WinThingError> {
+    let result = unsafe {
+        CloseHandle(
+            handle
+        )
+    };
+
+    if result == 0 {
+        return Err(
+            WinThingError::from_windows_last_error()
+        )
+    }
+
+    Ok(())
+}
+
+
+/// HANDLE CreateFileW(
+///   LPCWSTR               lpFileName,
+///   DWORD                 dwDesiredAccess,
+///   DWORD                 dwShareMode,
+///   LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+///   DWORD                 dwCreationDisposition,
+///   DWORD                 dwFlagsAndAttributes,
+///   HANDLE                hTemplateFile
+/// );
+pub fn create_file(path: &str) -> Result<FileHandle, WinThingError> {
+    let mut path_u16: Vec<u16> = path.to_string().encode_utf16().collect();
+    path_u16.resize(path_u16.len() + 1, 0);
+
+    let handle = unsafe {
+        CreateFileW(
+            path_u16.as_ptr(),
+            GENERIC_READ,
+            0,
+            null_mut(),
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_READONLY,
+            null_mut()
+        )
+    };
+
+    if handle.is_null() {
+        return Err(
+            WinThingError::from_windows_last_error()
+        );
+    }
+
+    Ok(
+        FileHandle(handle)
+    )
+}
 
 /// BOOL GetVolumePathNameW(
 ///   LPCWSTR lpszFileName,
