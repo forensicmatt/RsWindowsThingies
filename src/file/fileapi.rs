@@ -7,6 +7,7 @@ use winapi::um::winnt::GENERIC_READ;
 use winapi::um::fileapi::OPEN_EXISTING;
 use winapi::um::winbase::FILE_FLAG_BACKUP_SEMANTICS;
 use winapi::um::winnt::FILE_ATTRIBUTE_READONLY;
+use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 use winapi::um::handleapi::CloseHandle;
 use winapi::um::fileapi::CreateFileW;
 use winapi::um::fileapi::GetVolumePathNameW;
@@ -63,7 +64,7 @@ pub fn create_file(path: &str) -> Result<FileHandle, WinThingError> {
         )
     };
 
-    if handle.is_null() {
+    if handle == INVALID_HANDLE_VALUE {
         return Err(
             WinThingError::from_windows_last_error()
         );
