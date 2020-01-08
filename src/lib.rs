@@ -10,3 +10,4 @@ pub mod winetl;
 pub mod file;
 pub mod volume;
 pub mod mft;
+pub mod usn;

@@ -23,8 +23,7 @@ fn get_attr_name(attribute: &MftAttributeType) -> String {
         MftAttributeType::IndexRoot => "IndexRoot".to_string(),
         MftAttributeType::IndexAllocation => "IndexAllocation".to_string(),
         MftAttributeType::BITMAP => "BITMAP".to_string(),
-        MftAttributeType::ReparsePoint => "ReparsePoint".to_string(),
-        other => format!("Attribute: {:?}", other)
+        MftAttributeType::ReparsePoint => "ReparsePoint".to_string()
     }
 }
 

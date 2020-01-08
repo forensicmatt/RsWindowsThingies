@@ -27,7 +27,8 @@ pub enum ErrorType {
     WindowsError,
     SerdeJsonError,
     IoError,
-    MftError
+    MftError,
+    InvalidUsnJournalData
 }
 
 #[derive(Debug)]
@@ -106,6 +107,15 @@ impl WinThingError {
         Self {
             message: error.to_string(),
             kind: ErrorType::OsError
+        }
+    }
+
+    pub fn invalid_usn_journal_data(size: usize) -> Self {
+        let err_str = format!("Unknown size for UsnJournalData structure: {}", size);
+
+        Self {
+            message: err_str,
+            kind: ErrorType::InvalidUsnJournalData
         }
     }
 }
