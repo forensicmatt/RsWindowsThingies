@@ -3,6 +3,26 @@
 Windows Thingies... but in Rust
 
 # Tools
+## listen_mft
+Watch an entries' values change.
+
+```
+listen_mft 0.2.0
+Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>
+See the differences in MFT attirbues.
+
+USAGE:
+    listen_mft.exe [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -d, --debug <DEBUG>    Debug level to use. [possible values: Off, Error, Warn, Info, Debug, Trace]
+    -f, --file <FILE>      The file to difference.
+```
+
 ## listen_events
 The event listen tool allows you to see Windows Event Logs in real time.
 

@@ -26,7 +26,7 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .possible_values(&["Off", "Error", "Warn", "Info", "Debug", "Trace"])
         .help("Debug level to use.");
 
-    App::new("difference_mft")
+    App::new("listen_mft")
         .version(VERSION)
         .author("Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>")
         .about("See the differences in MFT attirbues.")

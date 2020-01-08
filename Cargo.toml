@@ -46,6 +46,4 @@ features = [
 ]
 
 [dependencies.mft]
-version = "0.4.5-alpha.0"
-branch = "master"
-git = "https://github.com/omerbenamram/mft.git"
+version = "0.5"

@@ -55,7 +55,7 @@ pub fn create_file(path: &str) -> Result<FileHandle, WinThingError> {
     let handle = unsafe {
         CreateFileW(
             path_u16.as_ptr(),
-            GENERIC_READ,
+            0,
             0,
             null_mut(),
             OPEN_EXISTING,
