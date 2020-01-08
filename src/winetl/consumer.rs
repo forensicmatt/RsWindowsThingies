@@ -15,7 +15,7 @@ use crate::winetl::evntrace::{
 use crate::errors::WinThingError;
 
 
-unsafe extern "system" fn process_event(p_event: PEVENT_RECORD) {
+unsafe extern "system" fn process_event(_p_event: PEVENT_RECORD) {
     println!("process_event");
 }
 

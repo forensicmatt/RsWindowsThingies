@@ -51,7 +51,7 @@ pub fn custom_entry_value(entry: MftEntry) -> Result<Value, WinThingError> {
 
 pub struct EntryListener {
     live_volume: WindowsLiveNtfs,
-    path_to_monitor: String,
+    _path_to_monitor: String,
     entry_to_monitor: i64
 }
 impl EntryListener {
@@ -71,7 +71,7 @@ impl EntryListener {
         Ok(
             Self {
                 live_volume: live_volume,
-                path_to_monitor: path_to_monitor.to_string(),
+                _path_to_monitor: path_to_monitor.to_string(),
                 entry_to_monitor: entry as i64
             }
         )

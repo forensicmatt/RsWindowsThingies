@@ -92,7 +92,7 @@ impl MftOutputBuffer {
 /// Struct for interacting with a live NTFS volume via Windows API
 ///
 pub struct WindowsLiveNtfs {
-    volume_path: String,
+    _volume_path: String,
     volume_handle: File,
     ntfs_volume_data: NTFS_VOLUME_DATA_BUFFER
 }
@@ -106,7 +106,7 @@ impl WindowsLiveNtfs {
 
         Ok(
             WindowsLiveNtfs {
-                volume_path: volume_path.to_string(),
+                _volume_path: volume_path.to_string(),
                 volume_handle: file_handle,
                 ntfs_volume_data: ntfs_volume_data
             }

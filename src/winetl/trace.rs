@@ -13,7 +13,7 @@ use crate::errors::format_win_error;
 
 
 pub struct TraceConsumer {
-    session_name: String
+    _session_name: String
 }
 
 /// https://github.com/ROki1988/etw_client/blob/4d3f079468c24ba4b0183a3f4712841cffcc0445/src/main.rs
@@ -90,7 +90,7 @@ impl TraceConsumer {
 
         Ok(
             Self {
-                session_name: session_name
+                _session_name: session_name
             }
         )
     }
