@@ -62,12 +62,12 @@ pub fn query_usn_journal(
 /// 	(LPDWORD)      lpBytesReturned, // number of bytes returned
 /// 	(LPOVERLAPPED) lpOverlapped     // OVERLAPPED structure
 /// );
-pub fn read_usn_journal<'a> (
+pub fn read_usn_journal (
     volume_handle: HANDLE, 
-    read_jounral_data: usnstruct::ReadUsnJournalData, 
-    record_buffer: &'a mut [u8]
-) -> Result<&'a [u8], WinThingError> {
+    read_jounral_data: usnstruct::ReadUsnJournalData
+) -> Result<Vec<u8>, WinThingError> {
     let mut bytes_read: u32 = 0;
+    let mut record_buffer = vec![0u8; 4096];
 
     let result = match read_jounral_data {
         usnstruct::ReadUsnJournalData::V0(mut read_data_v0) => {
@@ -105,8 +105,10 @@ pub fn read_usn_journal<'a> (
             WinThingError::from_windows_last_error()
         );
     }
+
+    record_buffer.truncate(bytes_read as usize);
     
     Ok(
-        &record_buffer[..bytes_read as usize]
+        record_buffer
     )
 }

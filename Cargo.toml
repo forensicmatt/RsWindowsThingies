@@ -45,5 +45,9 @@ features = [
 "impl-debug"
 ]
 
+[dependencies.rusty_usn]
+git = "https://github.com/forensicmatt/RustyUsn.git"
+branch = "master"
+
 [dependencies.mft]
 version = "0.5"
