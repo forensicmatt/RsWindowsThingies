@@ -10,6 +10,8 @@ use winapi::um::winioctl::NTFS_VOLUME_DATA_BUFFER;
 use winapi::um::winioctl::FSCTL_GET_NTFS_VOLUME_DATA;
 use crate::errors::WinThingError;
 use crate::file::helper::query_file_record;
+use crate::usn::winioctrl::query_usn_journal;
+use crate::usn::structs::UsnJournalData;
 
 
 /// Query FSCTL_GET_NTFS_VOLUME_DATA to get the NTFS volume data.
@@ -92,13 +94,15 @@ impl MftOutputBuffer {
 /// Struct for interacting with a live NTFS volume via Windows API
 ///
 pub struct WindowsLiveNtfs {
-    volume_path: String,
+    _volume_path: String,
     volume_handle: File,
     ntfs_volume_data: NTFS_VOLUME_DATA_BUFFER
 }
 impl WindowsLiveNtfs {
     pub fn from_volume_path(volume_path: &str) -> Result<Self, WinThingError> {
-        let file_handle = File::open(&volume_path)?;
+        let file_handle = File::open(
+            &volume_path
+        )?;
         
         let ntfs_volume_data = get_ntfs_volume_data(
             file_handle.as_raw_handle()
@@ -106,10 +110,16 @@ impl WindowsLiveNtfs {
 
         Ok(
             WindowsLiveNtfs {
-                volume_path: volume_path.to_string(),
+                _volume_path: volume_path.to_string(),
                 volume_handle: file_handle,
                 ntfs_volume_data: ntfs_volume_data
             }
+        )
+    }
+
+    pub fn query_usn_journal(&mut self) -> Result<UsnJournalData, WinThingError> {
+        query_usn_journal(
+            self.volume_handle.as_raw_handle()
         )
     }
 

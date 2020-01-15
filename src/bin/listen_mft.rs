@@ -3,9 +3,14 @@ use std::io::stdin;
 use std::io::BufRead;
 use clap::{App, Arg};
 use std::process::exit;
+use std::thread;
+use std::sync::mpsc;
+use std::sync::mpsc::{Sender, Receiver};
+use rusty_usn::record::UsnEntry;
 use rswinthings::utils::json::get_difference_value;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::mft::EntryListener;
+use rswinthings::usn::listener::UsnVolumeListener;
 
 static VERSION: &'static str = "0.2.0";
 
@@ -36,18 +41,33 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
 
 
 fn run(mut listener: EntryListener) {
-    eprintln!("Hit enter to print snapshot.");
+    let (tx, rx): (Sender<UsnEntry>, Receiver<UsnEntry>) = mpsc::channel();
 
     let mut previous_value = listener.get_current_value().expect("Unable to get current mft entry value");
     println!("{}", previous_value.to_string());
 
-    loop {
-        let mut line = String::new();
-        let stdin_io = stdin();
+    let volume_str = listener.get_volume_string().expect("Error getting volume path.");
+    let usn_volume_listener = UsnVolumeListener::new(
+        volume_str,
+        false,
+        tx.clone()
+    );
 
-        stdin_io.lock().read_line(
-            &mut line
-        ).expect("Could not read line");
+    let _thread = thread::spawn(move || {
+        usn_volume_listener.listen_to_volume(None)
+    });
+
+    loop {
+        let usn_entry = match rx.recv() {
+            Ok(e) => e,
+            Err(_) => panic!("Disconnected!"),
+        };
+
+        let file_ref = usn_entry.record.get_file_reference();
+
+        if file_ref.entry != listener.entry_to_monitor as u64 {
+            continue;
+        }
 
         let current_value = listener.get_current_value().expect("Unable to get current mft entry value");
 
@@ -55,12 +75,23 @@ fn run(mut listener: EntryListener) {
             &previous_value,
             &current_value
         );
-        // println!("previous_value: {}", previous_value.to_string());
-        // println!("current_value: {}", current_value.to_string());
-        let value_str = serde_json::to_string_pretty(&difference_value).expect("Unable to format Value");
-        println!("{}", value_str);
 
-        previous_value = current_value.to_owned();
+        match difference_value.as_object() {
+            None => continue,
+            Some(o) => {
+                if o.is_empty() {
+                    continue;
+                }
+
+                let value_str = serde_json::to_string_pretty(
+                    &difference_value
+                ).expect("Unable to format Value");
+        
+                println!("{}", value_str);
+        
+                previous_value = current_value.to_owned();
+            }
+        }
     }
 }
 

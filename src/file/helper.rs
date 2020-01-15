@@ -1,9 +1,7 @@
 use std::ptr;
 use std::mem;
 use regex::Regex;
-use std::fs::File;
 use winapi::ctypes::c_void;
-use std::os::windows::io::AsRawHandle;
 use winapi::um::winnt::HANDLE;
 use winapi::um::winnt::LARGE_INTEGER;
 use winapi::um::ioapiset::DeviceIoControl;
@@ -63,10 +61,16 @@ pub fn get_volume_path_from_path(path: &str) -> Result<String, WinThingError> {
 }
 
 
-/// Get the raw MFT entry of the given entry
-/// Query FSCTL_GET_NTFS_FILE_RECORD to get an entries' NTFS_FILE_RECORD_OUTPUT_BUFFER
-/// https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_ntfs_file_record
-///
+/// BOOL DeviceIoControl(
+/// 	(HANDLE) hDevice,              // handle to device
+/// 	FSCTL_GET_NTFS_FILE_RECORD,    // dwIoControlCode
+/// 	(LPVOID) lpInBuffer,           // input buffer
+/// 	(DWORD) nInBufferSize,         // size of input buffer
+/// 	(LPVOID) lpOutBuffer,          // output buffer
+/// 	(DWORD) nOutBufferSize,        // size of output buffer
+/// 	(LPDWORD) lpBytesReturned,     // number of bytes returned
+/// 	(LPOVERLAPPED) lpOverlapped    // OVERLAPPED structure
+/// );
 pub fn query_file_record(
     volume_handle: HANDLE, 
     entry: i64, 

@@ -23,8 +23,7 @@ fn get_attr_name(attribute: &MftAttributeType) -> String {
         MftAttributeType::IndexRoot => "IndexRoot".to_string(),
         MftAttributeType::IndexAllocation => "IndexAllocation".to_string(),
         MftAttributeType::BITMAP => "BITMAP".to_string(),
-        MftAttributeType::ReparsePoint => "ReparsePoint".to_string(),
-        other => format!("Attribute: {:?}", other)
+        MftAttributeType::ReparsePoint => "ReparsePoint".to_string()
     }
 }
 
@@ -52,8 +51,8 @@ pub fn custom_entry_value(entry: MftEntry) -> Result<Value, WinThingError> {
 
 pub struct EntryListener {
     live_volume: WindowsLiveNtfs,
-    path_to_monitor: String,
-    entry_to_monitor: i64
+    pub path_to_monitor: String,
+    pub entry_to_monitor: i64
 }
 impl EntryListener {
     pub fn new(path_to_monitor: &str) -> Result<Self, WinThingError> {
@@ -75,6 +74,12 @@ impl EntryListener {
                 path_to_monitor: path_to_monitor.to_string(),
                 entry_to_monitor: entry as i64
             }
+        )
+    }
+
+    pub fn get_volume_string(&self) -> Result<String, WinThingError> {
+        get_volume_path_from_path(
+            &self.path_to_monitor
         )
     }
 

@@ -1,6 +1,5 @@
 use treediff;
 use serde_json::Value;
-use serde_json::Value as ValueType;
 
 use treediff::tools::ChangeType::*;
 use treediff::tools::Recorder;
@@ -44,7 +43,7 @@ pub fn get_difference_value(
                     "created": value.to_owned()
                 });
             },
-            Removed(keys, value) => {
+            Removed(keys, _value) => {
                 let mut path_list: Vec<String> = Vec::new();
                 for key in keys {
                     path_list.push(key.to_string())
