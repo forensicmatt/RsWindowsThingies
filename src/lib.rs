@@ -6,3 +6,8 @@ extern crate quick_xml;
 pub mod errors;
 pub mod utils;
 pub mod winevt;
+pub mod winetl;
+pub mod file;
+pub mod volume;
+pub mod mft;
+pub mod usn;

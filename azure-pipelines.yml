@@ -52,6 +52,16 @@ steps:
     displayName: "Create print_channels variable (Windows_NT)"
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
+  - bash: |
+      echo "##vso[task.setvariable variable=build.binary_name3]print_publishers.exe"
+    displayName: "Create print_channels variable (Windows_NT)"
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - bash: |
+      echo "##vso[task.setvariable variable=build.binary_name4]listen_mft.exe"
+    displayName: "Create listen_mft variable (Windows_NT)"
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
   - task: CopyFiles@2
     displayName: Copy listen_events
     inputs:
@@ -67,6 +77,24 @@ steps:
       sourceFolder: '$(Build.SourcesDirectory)/target/release'
       contents: |
         $(build.binary_name2)
+      targetFolder: '$(Build.BinariesDirectory)'
+      condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: CopyFiles@2
+    displayName: Copy print_prublishers
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)/target/release'
+      contents: |
+        $(build.binary_name3)
+      targetFolder: '$(Build.BinariesDirectory)'
+      condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: CopyFiles@2
+    displayName: Copy listen_mft
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)/target/release'
+      contents: |
+        $(build.binary_name4)
       targetFolder: '$(Build.BinariesDirectory)'
       condition: eq( variables['Agent.OS'], 'Windows_NT' )
 

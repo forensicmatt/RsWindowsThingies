@@ -1,6 +1,6 @@
 [package]
 name = "rswinthings"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Matthew Seyer"]
 edition = "2018"
 
@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 hex = "0.4"
+regex = "1"
 clap = "2"
 log = "0.4"
 fern = "0.5"
@@ -15,16 +16,38 @@ time = "0.1"
 chrono = "0.4"
 quick-xml = "0.16"
 minidom = "0.11"
-serde = "1.0"
 serde_json = "1.0"
+rpassword = "4.0"
+byteorder = "1.3"
+
+[dependencies.treediff]
+version = "*"
+features = ["with-serde-json"]
+
+[dependencies.serde]
+version = "1.0"
+features = ["derive"]
 
 [dependencies.winapi]
-version = "0.3"
+version = "0.3.8"
 features = [
+"winioctl",
+"ioapiset",
 "winevt",
 "winnt",
 "minwindef",
 "errhandlingapi",
 "winerror",
-"guiddef"
+"guiddef",
+"evntrace",
+"wmistr",
+"impl-default",
+"impl-debug"
 ]
+
+[dependencies.rusty_usn]
+git = "https://github.com/forensicmatt/RustyUsn.git"
+branch = "master"
+
+[dependencies.mft]
+version = "0.5"

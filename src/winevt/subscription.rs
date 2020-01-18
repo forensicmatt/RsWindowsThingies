@@ -11,12 +11,14 @@ pub struct ChannelSubscription {
 
 impl ChannelSubscription {
     pub fn new(
+        session: &Option<EvtHandle>,
         channel: String, 
         query: Option<String>, 
         flags: Option<u32>, 
         context: &CallbackContext
     ) -> Result<Self, WinThingError> {
         let handle = register_event_callback(
+            &session,
             &channel,
             query,
             flags,

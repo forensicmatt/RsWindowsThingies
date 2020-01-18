@@ -1,13 +1,17 @@
 use hex;
 use std::fmt;
+use serde::Serialize;
 use serde_json::Value;
+use std::ffi::OsString;
 use serde_json::Number;
+use std::os::windows::prelude::*;
 use winapi::shared::guiddef::GUID;
 use winapi::um::winevt::*;
 use crate::errors::WinThingError;
 
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
 pub enum VariantValue {
     Null,
     String(String),
@@ -72,20 +76,23 @@ impl VariantValue {
         let value = match variant.Type {
             EvtVarTypeNull => VariantValue::Null,
             EvtVarTypeString => {
-                let slice : &[u16];
+                let slice: &[u16];
                 unsafe {
                     let ptr = variant.u.StringVal();
                     let len = (0..).take_while(
                         |&i| *ptr.offset(i) != 0
                     ).count();
-                    slice = std::slice::from_raw_parts(*ptr, len);
+                    slice = std::slice::from_raw_parts(
+                        *ptr, 
+                        len
+                    );
                 }
 
-                VariantValue::String(
-                    String::from_utf16(
-                        slice
-                    )?
-                )
+                let string = OsString::from_wide(
+                    &slice[..]
+                ).to_string_lossy().to_string();
+
+                VariantValue::String(string)
             },
             EvtVarTypeAnsiString => {
                 let slice : &[u8];
@@ -258,6 +265,7 @@ impl fmt::Display for VariantValue {
         write!(f, "{}", self.to_string())
     }
 }
+
 
 pub struct EvtVariant(
     pub EVT_VARIANT

@@ -16,8 +16,14 @@ use winapi::um::winevt::{
     EvtSubscribeToFutureEvents,
     EvtSubscribeStartAtOldestRecord
 };
+use rswinthings::utils::cli::{
+    add_session_options_to_app,
+    get_session_from_matches
+};
+use rswinthings::winevt::EvtHandle;
 
-static VERSION: &'static str = "0.2.0";
+
+static VERSION: &'static str = "0.3.0";
 static DESCRIPTION: &'static str = r"
 Event listener written in Rust. Output is JSONL.
 
@@ -58,21 +64,29 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .possible_values(&["Off", "Error", "Warn", "Info", "Debug", "Trace"])
         .help("Debug level to use.");
 
-    App::new("listen_events")
+    let app = App::new("listen_events")
         .version(VERSION)
         .author("Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>")
         .about(DESCRIPTION)
         .arg(channel)
         .arg(format)
         .arg(historical)
-        .arg(debug)
+        .arg(debug);
+
+    // Add session arguments to app
+    add_session_options_to_app(app)
 }
 
 
-fn get_query_list_from_system(context: &CallbackContext, flags: Option<u32>) -> Vec<ChannelSubscription> {
+fn get_query_list_from_system(
+    session: &Option<EvtHandle>,
+    context: &CallbackContext, 
+    flags: Option<u32>
+) -> Vec<ChannelSubscription> {
     let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
     // Get a list off all the channels
-    let channel_list = get_channel_name_list();
+    let channel_list = get_channel_name_list(&session)
+        .expect("Error getting channel list");
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel
@@ -99,6 +113,7 @@ fn get_query_list_from_system(context: &CallbackContext, flags: Option<u32>) -> 
 
         // Create subscription
         let subscription = match ChannelSubscription::new(
+            session,
             channel.to_string(),
             None,
             flags,
@@ -119,6 +134,7 @@ fn get_query_list_from_system(context: &CallbackContext, flags: Option<u32>) -> 
 
 
 fn get_query_list_from_str_list<'a>(
+    session: &Option<EvtHandle>,
     context: &CallbackContext, 
     flags: Option<u32>,
     channel_list: Vec<&'a str>
@@ -128,6 +144,7 @@ fn get_query_list_from_str_list<'a>(
     for channel in channel_list {
         // Create subscription
         let subscription = match ChannelSubscription::new(
+            session,
             channel.to_string(),
             None,
             flags,
@@ -157,8 +174,18 @@ fn main() {
         Some(d) => set_debug_level(d).expect(
             "Error setting debug level"
         ),
-        None => {}
+        None => set_debug_level("Error").expect(
+            "Error setting debug level"
+        )
     }
+
+    // Get Session
+    let session: Option<EvtHandle> = match get_session_from_matches(
+        &options
+    ).expect("Error getting session from options") {
+        Some(s) => Some(s.0),
+        None => None
+    };
 
     let format_enum = match options.value_of("format") {
         Some(f) => {
@@ -187,12 +214,14 @@ fn main() {
     let _subscritions = match options.values_of("channel") {
         Some(v_list) => {
             get_query_list_from_str_list(
+                &session,
                 &context,
                 flags,
                 v_list.collect()
             )
         },
         None => get_query_list_from_system(
+            &session,
             &context,
             flags
         )
