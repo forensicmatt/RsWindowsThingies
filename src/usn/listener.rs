@@ -9,8 +9,15 @@ use rusty_usn::usn::IterRecordsByIndex;
 use crate::errors::WinThingError;
 use crate::volume::liventfs::WindowsLiveNtfs;
 use crate::usn::structs::ReadUsnJournalData;
-use crate::usn::winioctrl::read_usn_journal;
+use crate::devio::volume::query_usn_journal;
+use crate::devio::volume::read_usn_journal;
 
+
+pub struct UsnListenerConfig {
+    historical_flag: bool,
+    enumerate_paths: bool,
+    mask: Option<u32>
+}
 
 pub struct UsnVolumeListener {
     source: String,
@@ -36,7 +43,7 @@ impl UsnVolumeListener {
         self, 
         reason_mask: Option<u32>
     ) -> Result<(), WinThingError> {
-        let mut live_volume = WindowsLiveNtfs::from_volume_path(
+        let live_volume = WindowsLiveNtfs::from_volume_path(
             &self.source
         )?;
 
@@ -49,7 +56,9 @@ impl UsnVolumeListener {
             None => 0xffffffff 
         };
 
-        let usn_journal_data = live_volume.query_usn_journal()?;
+        let usn_journal_data = query_usn_journal(
+            live_volume.get_handle().as_raw_handle()
+        )?;
 
         let mut next_start_usn: u64 = usn_journal_data.get_next_usn();
 

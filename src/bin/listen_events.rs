@@ -56,6 +56,12 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .long("historical")
         .help("List historical records along with listening to new changes.");
 
+    let named_pipe = Arg::with_name("named_pipe")
+        .long("named_pipe")
+        .value_name("NAMEDPIPE")
+        .takes_value(true)
+        .help("The named pipe to write out to.");
+
     let debug = Arg::with_name("debug")
         .short("-d")
         .long("debug")
@@ -71,6 +77,7 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(channel)
         .arg(format)
         .arg(historical)
+        .arg(named_pipe)
         .arg(debug);
 
     // Add session arguments to app

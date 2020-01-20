@@ -1,16 +1,18 @@
 extern crate serde_json;
-use std::io::stdin;
-use std::io::BufRead;
 use clap::{App, Arg};
 use std::process::exit;
+use std::io::Write;
 use std::thread;
+use std::fs::File;
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
 use rusty_usn::record::UsnEntry;
+use rswinthings::file::pipe::create_pipe;
 use rswinthings::utils::json::get_difference_value;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::mft::EntryListener;
 use rswinthings::usn::listener::UsnVolumeListener;
+use rswinthings::file::FileHandle;
 
 static VERSION: &'static str = "0.2.0";
 
@@ -22,6 +24,12 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .value_name("FILE")
         .takes_value(true)
         .help("The file to difference.");
+
+    let namedpipe = Arg::with_name("named_pipe")
+        .long("named_pipe")
+        .value_name("NAMEDPIPE")
+        .takes_value(true)
+        .help("The named pipe to write out to.");
 
     let debug = Arg::with_name("debug")
         .short("-d")
@@ -36,15 +44,23 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .author("Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>")
         .about("See the differences in MFT attirbues.")
         .arg(format)
+        .arg(namedpipe)
         .arg(debug)
 }
 
 
-fn run(mut listener: EntryListener) {
+fn run(mut listener: EntryListener, mut named_pipe_opt: Option<File>) {
     let (tx, rx): (Sender<UsnEntry>, Receiver<UsnEntry>) = mpsc::channel();
 
     let mut previous_value = listener.get_current_value().expect("Unable to get current mft entry value");
-    println!("{}", previous_value.to_string());
+    match named_pipe_opt {
+        Some(ref mut fh) => {
+            fh.write(&previous_value.to_string().into_bytes());
+        },
+        None => {
+            println!("{}", previous_value.to_string());
+        }
+    }
 
     let volume_str = listener.get_volume_string().expect("Error getting volume path.");
     let usn_volume_listener = UsnVolumeListener::new(
@@ -86,8 +102,15 @@ fn run(mut listener: EntryListener) {
                 let value_str = serde_json::to_string_pretty(
                     &difference_value
                 ).expect("Unable to format Value");
-        
-                println!("{}", value_str);
+                
+                match named_pipe_opt {
+                    Some(ref mut fh) => {
+                        fh.write(&format!("{}", value_str).into_bytes());
+                    },
+                    None => {
+                        println!("{}", value_str);
+                    }
+                }
         
                 previous_value = current_value.to_owned();
             }
@@ -116,9 +139,18 @@ fn main() {
         }
     };
 
+    let named_pipe = match options.value_of("named_pipe") {
+        Some(p) => {
+            Some(
+                create_pipe(p).expect("blahh")
+            )
+        },
+        None => None
+    };
+
     let listener = EntryListener::new(
         file_path
     ).expect("Error creating EntryListener");
 
-    run(listener);
+    run(listener, named_pipe);
 }

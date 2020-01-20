@@ -1,7 +1,9 @@
+use std::io::Read;
 use serde_json::Value;
 use serde_json::to_value;
-use mft::entry::MftEntry;
+use mft::MftEntry;
 use mft::attribute::{MftAttribute, MftAttributeType};
+use byteorder::{ReadBytesExt, LittleEndian};
 use crate::errors::WinThingError;
 use crate::volume::liventfs::WindowsLiveNtfs;
 use crate::file::helper::{
@@ -49,6 +51,44 @@ pub fn custom_entry_value(entry: MftEntry) -> Result<Value, WinThingError> {
 }
 
 
+#[derive(Debug)]
+pub struct MftOutputBuffer {
+    file_reference_number: u64,
+    file_record_length: u32,
+    file_record_buffer: Vec<u8>
+}
+impl MftOutputBuffer {
+    pub fn from_buffer<T: Read>(mut raw_buffer: T) -> Result<Self, WinThingError> {
+        let file_reference_number = raw_buffer.read_u64::<LittleEndian>()?;
+        let file_record_length = raw_buffer.read_u32::<LittleEndian>()?;
+        let mut file_record_buffer = vec![0; file_record_length as usize];
+        
+        raw_buffer.read_exact(
+            &mut file_record_buffer
+        )?;
+
+        Ok(
+            MftOutputBuffer {
+                file_reference_number,
+                file_record_length,
+                file_record_buffer
+            }
+        )
+    }
+
+    pub fn buffer_as_hex(&self) -> String {
+        hex::encode(&self.file_record_buffer)
+    }
+
+    pub fn as_entry(&self) -> Result<MftEntry, WinThingError> {
+        Ok(MftEntry::from_buffer_skip_fixup(
+            self.file_record_buffer.clone(),
+            self.file_reference_number
+        )?)
+    }
+}
+
+
 pub struct EntryListener {
     live_volume: WindowsLiveNtfs,
     pub path_to_monitor: String,
@@ -84,7 +124,7 @@ impl EntryListener {
     }
 
     pub fn get_current_value(&mut self) -> Result<Value, WinThingError> {
-        let mft_entry = self.live_volume.get_entry(
+        let mft_entry = self.live_volume.get_mft_entry(
             self.entry_to_monitor
         )?;
 

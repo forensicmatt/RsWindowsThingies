@@ -11,3 +11,4 @@ pub mod file;
 pub mod volume;
 pub mod mft;
 pub mod usn;
+pub mod devio;

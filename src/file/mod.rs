@@ -1,5 +1,9 @@
 pub mod fileapi;
 pub mod helper;
+pub mod pipe;
+
+use std::fs::File;
+use std::os::windows::io::FromRawHandle;
 use winapi::um::winnt::HANDLE;
 use crate::file::fileapi::close_handle;
 
@@ -10,7 +14,16 @@ impl FileHandle {
     pub fn is_null(&self) -> bool {
         self.0.is_null()
     }
+
+    pub fn get_file(&self) -> File {
+        unsafe {
+            File::from_raw_handle(
+                self.0
+            )
+        }
+    }
 }
+
 impl Drop for FileHandle {
     fn drop(&mut self) {
         match close_handle(self.0) {

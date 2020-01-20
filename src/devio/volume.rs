@@ -1,15 +1,54 @@
 use std::ptr;
 use std::mem;
-use winapi::um::winioctl::{
-    FSCTL_QUERY_USN_JOURNAL,
-    FSCTL_READ_USN_JOURNAL
-};
 use winapi::ctypes::c_void;
 use winapi::um::winnt::HANDLE;
 use winapi::um::ioapiset::DeviceIoControl;
+use winapi::um::winioctl::{
+    NTFS_VOLUME_DATA_BUFFER,
+    FSCTL_GET_NTFS_VOLUME_DATA,
+    FSCTL_QUERY_USN_JOURNAL,
+    FSCTL_READ_USN_JOURNAL
+};
 use crate::usn::structs as usnstruct;
 use crate::errors::WinThingError;
 
+
+/// Query FSCTL_GET_NTFS_VOLUME_DATA to get the NTFS volume data.
+/// https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_get_ntfs_volume_data
+/// 
+pub fn get_ntfs_volume_data(
+    volume_handle: HANDLE
+) -> Result<NTFS_VOLUME_DATA_BUFFER, WinThingError> {
+    let mut bytes_read = 0;
+    let mut output_buffer = vec![0u8; 128];
+
+    let result = unsafe {
+        DeviceIoControl(
+            volume_handle,
+            FSCTL_GET_NTFS_VOLUME_DATA,
+            ptr::null_mut(),
+            0,
+            output_buffer.as_mut_ptr() as *mut _,
+            output_buffer.len() as u32,
+            &mut bytes_read,
+            ptr::null_mut(),
+        )
+    };
+
+    if result == 0 {
+        return Err(
+            WinThingError::from_windows_last_error()
+        );
+    }
+
+    let volume_data_buffer: NTFS_VOLUME_DATA_BUFFER = unsafe {
+        ptr::read(
+            output_buffer.as_ptr() as *const _
+        )
+    };
+
+    Ok(volume_data_buffer)
+}
 
 /// BOOL WINAPI DeviceIoControl(
 /// 	(HANDLE) Device,                       // handle to volume
