@@ -14,7 +14,7 @@ impl ChannelSubscription {
         session: &Option<EvtHandle>,
         channel: String, 
         query: Option<String>, 
-        flags: Option<u32>, 
+        flags: Option<u32>,
         context: &CallbackContext
     ) -> Result<Self, WinThingError> {
         let handle = register_event_callback(

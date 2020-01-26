@@ -4,24 +4,16 @@ extern crate chrono;
 extern crate serde_json;
 use clap::{App, Arg};
 use std::process::exit;
-use std::thread::sleep;
-use std::time::Duration;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::winevt::channels::get_channel_name_list;
-use rswinthings::winevt::channels::ChannelConfig;
 use rswinthings::winevt::callback::OutputFormat;
-use rswinthings::winevt::callback::CallbackContext;
-use rswinthings::winevt::subscription::ChannelSubscription;
-use winapi::um::winevt::{
-    EvtSubscribeToFutureEvents,
-    EvtSubscribeStartAtOldestRecord
-};
 use rswinthings::utils::cli::{
     add_session_options_to_app,
     get_session_from_matches
 };
 use rswinthings::winevt::EvtHandle;
-
+use rswinthings::handler::WindowsHandler;
+use rswinthings::winevt::channels::ChannelConfig;
 
 static VERSION: &'static str = "0.3.0";
 static DESCRIPTION: &'static str = r"
@@ -85,15 +77,15 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
 }
 
 
-fn get_query_list_from_system(
-    session: &Option<EvtHandle>,
-    context: &CallbackContext, 
-    flags: Option<u32>
-) -> Vec<ChannelSubscription> {
-    let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
+fn get_list_from_system(
+    session: &Option<EvtHandle>
+) -> Vec<String> {
+    let mut channels = Vec::new();
+
     // Get a list off all the channels
     let channel_list = get_channel_name_list(&session)
         .expect("Error getting channel list");
+
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel
@@ -116,60 +108,11 @@ fn get_query_list_from_system(
             continue;
         }
 
-        eprintln!("listening to channel: {}", channel);
-
-        // Create subscription
-        let subscription = match ChannelSubscription::new(
-            session,
-            channel.to_string(),
-            None,
-            flags,
-            &context
-        ){
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Error creating subscription for {}: {:?}", channel, e);
-                continue;
-            }
-        };
-
-        subscriptions.push(subscription);
+        eprintln!("Adding {} to listener", channel);
+        channels.push(channel);
     }
 
-    subscriptions
-}
-
-
-fn get_query_list_from_str_list<'a>(
-    session: &Option<EvtHandle>,
-    context: &CallbackContext, 
-    flags: Option<u32>,
-    channel_list: Vec<&'a str>
-) -> Vec<ChannelSubscription> {
-    let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
-
-    for channel in channel_list {
-        // Create subscription
-        let subscription = match ChannelSubscription::new(
-            session,
-            channel.to_string(),
-            None,
-            flags,
-            &context
-        ){
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Error creating subscription for {}: {:?}", channel, e);
-                continue;
-            }
-        };
-
-        subscriptions.push(
-            subscription
-        );
-    }
-
-    subscriptions
+    channels
 }
 
 
@@ -198,44 +141,45 @@ fn main() {
         Some(f) => {
             match f {
                 "xml" => OutputFormat::XmlFormat,
-                "jsonl" => OutputFormat::JsonlFormat,
+                "jsonl" => OutputFormat::JsonFormat,
                 other => {
                     eprintln!("Unkown format: {}", other);
                     exit(-1);
                 }
             }
         },
-        None => OutputFormat::JsonlFormat
+        None => OutputFormat::JsonFormat
     };
 
     // Historical flag
-    let flags = match options.is_present("historical") {
-        true => Some(EvtSubscribeStartAtOldestRecord),
-        false => Some(EvtSubscribeToFutureEvents)
-    };
+    let historical_flag = options.is_present("historical");
 
-    // Create context
-    let context = CallbackContext::new()
-        .with_format(format_enum);
-
-    let _subscritions = match options.values_of("channel") {
-        Some(v_list) => {
-            get_query_list_from_str_list(
-                &session,
-                &context,
-                flags,
-                v_list.collect()
-            )
+    let channel_list = match options.values_of("channel") {
+        Some(ch_str_list) => {
+            let mut list = Vec::new();
+            for ch_str in ch_str_list {
+                list.push(ch_str.to_string())
+            }
+            list
         },
-        None => get_query_list_from_system(
-            &session,
-            &context,
-            flags
+        None => get_list_from_system(
+            &session
         )
     };
 
-    eprintln!("Listening to events...");
+    let handler = WindowsHandler::new();
+    let (reciever, _subscriptions) = handler.listen_events(
+        session,
+        historical_flag,
+        format_enum,
+        channel_list
+    ).expect("Error listening to events");
+
+
+
     loop {
-        sleep(Duration::from_millis(200));
+        for event in reciever.recv() {
+            println!("{}", event.to_string());
+        }
     }
 }

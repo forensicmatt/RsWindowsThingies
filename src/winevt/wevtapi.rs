@@ -111,8 +111,8 @@ pub fn evt_render(
 ///   EVT_HANDLE Event
 /// )
 pub extern "system" fn evt_subscribe_callback(
-    action: EVT_SUBSCRIBE_NOTIFY_ACTION, 
-    user_context: *mut c_void, 
+    action: EVT_SUBSCRIBE_NOTIFY_ACTION,
+    user_context: *mut c_void,
     event_handle: EVT_HANDLE
 ) -> u32 {
     if action != EvtSubscribeActionDeliver {
