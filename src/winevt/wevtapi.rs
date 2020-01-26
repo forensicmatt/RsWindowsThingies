@@ -125,7 +125,7 @@ pub extern "system" fn evt_subscribe_callback(
     match evt_render(event_handle) {
         Ok(xml_event) => {
             unsafe {
-                user_context.as_ref().unwrap().handle_record(
+                user_context.as_ref().expect("CallbackContext cannot be null").handle_record(
                     xml_event
                 );
             }
