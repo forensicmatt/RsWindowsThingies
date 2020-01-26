@@ -120,15 +120,15 @@ pub extern "system" fn evt_subscribe_callback(
         return 0;
     }
 
-    let user_context: Box<&CallbackContext> = unsafe {
-        Box::from_raw(user_context as *mut _)
-    };
+    let user_context: *mut CallbackContext = user_context as *mut _;
 
     match evt_render(event_handle) {
         Ok(xml_event) => {
-            user_context.handle_record(
-                xml_event
-            );
+            unsafe {
+                user_context.as_ref().unwrap().handle_record(
+                    xml_event
+                );
+            }
         },
         Err(e) => {
             error!("Error calling evt_render(): {:?}", e);
@@ -139,10 +139,6 @@ pub extern "system" fn evt_subscribe_callback(
     unsafe {
         EvtClose(event_handle);
     }
-
-    // Prevent double-free of reference
-    // If you dont do this, you will get an app crash
-    Box::leak(user_context);
 
     return 0;
 }
@@ -163,7 +159,7 @@ pub fn register_event_callback(
         channel_path: &String, 
         query: Option<String>,
         flags: Option<u32>,
-        context: &CallbackContext
+        context: &mut CallbackContext
 ) -> Result<EvtHandle, WinThingError> {
     let session = match session {
         Some(s) => s.0,
@@ -185,10 +181,6 @@ pub fn register_event_callback(
     let mut query_str_u16 : Vec<u16> = query_str.encode_utf16().collect();
     query_str_u16.resize(query_str.len() + 1, 0);
 
-    let context = Box::into_raw(
-        Box::from(context)
-    );
-
     // Bookmarks are not currently implemented
     let bookmark = null_mut();
 
@@ -205,7 +197,7 @@ pub fn register_event_callback(
             channel_path_u16.as_ptr(),
             query_str_u16.as_ptr(),
             bookmark,
-            context as *mut c_void,
+            context as *mut _ as *mut c_void,
             Some(evt_subscribe_callback),
             flags
         )

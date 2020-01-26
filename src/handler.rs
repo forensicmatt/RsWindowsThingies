@@ -73,7 +73,7 @@ impl WindowsHandler {
                 channel.to_string(),
                 None,
                 flags,
-                &context
+                &mut context
             ){
                 Ok(s) => s,
                 Err(e) => {
