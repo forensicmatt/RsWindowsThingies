@@ -17,16 +17,16 @@ pool:
 steps:
   - script: |
       curl -sSf -o rustup-init.exe https://win.rustup.rs
-      rustup-init.exe -y --default-toolchain %RUSTUP_TOOLCHAIN%
+      rustup-init.exe -y --default-host %target% --default-toolchain %RUSTUP_TOOLCHAIN%
       echo "##vso[task.setvariable variable=PATH;]%PATH%;%USERPROFILE%\.cargo\bin"
     displayName: Windows install rust
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
-  - script: cargo build --all-features --release
+  - script: cargo build --release
     displayName: Cargo build Windows_NT
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
-  - script: cargo test --all-features
+  - script: cargo test
     displayName: Cargo test Windows_NT
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
@@ -62,6 +62,11 @@ steps:
     displayName: "Create listen_mft variable (Windows_NT)"
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
+  - bash: |
+      echo "##vso[task.setvariable variable=build.binary_name5]listen_usn.exe"
+    displayName: "Create listen_usn variable (Windows_NT)"
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
   - task: CopyFiles@2
     displayName: Copy listen_events
     inputs:
@@ -95,6 +100,15 @@ steps:
       sourceFolder: '$(Build.SourcesDirectory)/target/release'
       contents: |
         $(build.binary_name4)
+      targetFolder: '$(Build.BinariesDirectory)'
+      condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  
+  - task: CopyFiles@2
+    displayName: Copy listen_usn
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)/target/release'
+      contents: |
+        $(build.binary_name5)
       targetFolder: '$(Build.BinariesDirectory)'
       condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
