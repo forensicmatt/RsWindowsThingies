@@ -9,7 +9,8 @@ use std::sync::mpsc::{
     Receiver
 };
 use byteorder::{ByteOrder, LittleEndian};
-use rusty_usn::record::{EntryMeta, UsnEntry};
+use rusty_usn::flags;
+use rusty_usn::record::EntryMeta;
 use rusty_usn::usn::IterRecordsByIndex;
 use crate::errors::WinThingError;
 use crate::volume::liventfs::WindowsLiveNtfs;
@@ -26,6 +27,17 @@ fn listen_usn(
         &listener.source
     )?;
 
+    let mut mapping = None;
+
+    // Path enumeration is optional
+    if listener.config.enumerate_paths {
+        debug!("creating folder mapping");
+        mapping = Some(
+            live_volume.get_folder_mapping()
+        );
+        debug!("finished folder mapping");
+    }
+
     let file_handle = File::open(
         listener.source.clone()
     )?;
@@ -35,6 +47,7 @@ fn listen_usn(
     )?;
 
     let mut next_start_usn: u64 = usn_journal_data.get_next_usn();
+    let catch_up_usn = next_start_usn;
 
     if listener.config.historical_flag {
         next_start_usn = 0;
@@ -75,7 +88,66 @@ fn listen_usn(
         
         let mut record_count: u64 = 0;
         for usn_entry in record_iterator {
-            let entry_value = usn_entry.to_json_value()?;
+            let mut entry_value = usn_entry.to_json_value()?;
+
+            match mapping {
+                None => {},
+                Some(ref mut mapping) => {
+                    let entry_usn = usn_entry.record.get_usn();
+                    let file_name = usn_entry.record.get_file_name();
+                    let file_ref = usn_entry.record.get_file_reference();
+                    let reason_code = usn_entry.record.get_reason_code();
+                    let parent_ref = usn_entry.record.get_parent_reference();
+                    let file_attributes = usn_entry.record.get_file_attributes();
+
+                    if file_attributes.contains(flags::FileAttributes::FILE_ATTRIBUTE_DIRECTORY){
+                        if reason_code.contains(flags::Reason::USN_REASON_RENAME_OLD_NAME) {
+                            // We can remove old names from the mapping because we no longer need these.
+                            // On new names, we add the name to the mapping.
+                            mapping.remove_mapping(
+                                file_ref
+                            );
+                        }
+                        else if reason_code.contains(flags::Reason::USN_REASON_FILE_DELETE) {
+                            // If we are starting from historical entries, we need to add deleted
+                            // entries to the map until we catch up to the current system, then we can 
+                            // start removing deleted entries. This is because our mapping cannot
+                            // get unallocated entries from the MFT via the Windows API.
+                            if listener.config.historical_flag && entry_usn < catch_up_usn {
+                                mapping.add_mapping(
+                                    file_ref, 
+                                    file_name.clone(), 
+                                    parent_ref
+                                )
+                            } else {
+                                mapping.remove_mapping(
+                                    file_ref
+                                );
+                            }
+                        } else if reason_code.contains(flags::Reason::USN_REASON_RENAME_NEW_NAME) ||
+                            reason_code.contains(flags::Reason::USN_REASON_FILE_CREATE) {
+                            // If its a new name or creation, we need to updated the mapping
+                            mapping.add_mapping(
+                                file_ref, 
+                                file_name.clone(), 
+                                parent_ref
+                            )
+                        }
+                    }
+
+                    // Enumerate the path of this record from the FolderMapping
+                    let full_path = match mapping.enumerate_path(
+                        parent_ref.entry,
+                        parent_ref.sequence
+                    ){
+                        Some(path) => path,
+                        None => "[<unknown>]".to_string()
+                    };
+
+                    let full_file_name = format!("{}/{}", &full_path, &file_name);
+                    entry_value["full_path"] = Value::String(full_file_name);
+                }
+            }
 
             match tx.send(entry_value) {
                 Ok(_) => {

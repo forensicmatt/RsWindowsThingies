@@ -1,11 +1,7 @@
 use serde_json::Value;
 use std::sync::mpsc::Receiver;
 use crate::errors::WinThingError;
-use crate::volume::liventfs;
-use crate::usn::listener::{
-    UsnListenerConfig,
-    UsnVolumeListener
-};
+use crate::usn::listener::UsnListenerConfig;
 
 
 pub struct WindowsHandler {}
