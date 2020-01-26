@@ -66,7 +66,7 @@ impl WindowsHandler {
         };
 
         for channel in channel_list {
-            eprintln!("creating {} ChannelSubscription", channel);
+            debug!("creating {} ChannelSubscription", channel);
             // Create subscription
             let subscription = match ChannelSubscription::new(
                 &session,
