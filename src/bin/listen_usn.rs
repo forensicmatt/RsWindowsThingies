@@ -2,6 +2,7 @@ use clap::{App, Arg};
 use std::process::exit;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::handler::WindowsHandler;
+use rswinthings::usn::listener::UsnListenerConfig;
 
 static VERSION: &'static str = "0.2.0";
 
@@ -60,10 +61,14 @@ fn main() {
     };
 
     let handler = WindowsHandler::new();
+    let mut config = UsnListenerConfig::new();
+    if options.is_present("historical") {
+        config = config.historic(true);
+    }
 
     let reciever = handler.listen_usn(
         source_volume,
-        None
+        Some(config)
     ).expect("Error creating listener");
 
     loop {
