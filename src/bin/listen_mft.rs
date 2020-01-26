@@ -8,19 +8,25 @@ use rswinthings::utils::json::get_difference_value;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::mft::EntryListener;
 use rswinthings::usn::listener::UsnListenerConfig;
+use rswinthings::handler::WindowsHandler;
 
 static VERSION: &'static str = "0.2.0";
 
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
-    let format = Arg::with_name("file")
+    let file_arg = Arg::with_name("file")
         .short("-f")
         .long("file")
         .value_name("FILE")
         .takes_value(true)
         .help("The file to difference.");
 
-    let namedpipe = Arg::with_name("named_pipe")
+    let pretty_arg = Arg::with_name("pretty")
+        .short("p")
+        .long("pretty")
+        .help("Use pretty json output.");
+
+    let namedpipe_arg = Arg::with_name("named_pipe")
         .long("named_pipe")
         .value_name("NAMEDPIPE")
         .takes_value(true)
@@ -38,8 +44,9 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .version(VERSION)
         .author("Matthew Seyer <https://github.com/forensicmatt/RsWindowsThingies>")
         .about("See the differences in MFT attirbues.")
-        .arg(format)
-        .arg(namedpipe)
+        .arg(file_arg)
+        .arg(pretty_arg)
+        .arg(namedpipe_arg)
         .arg(debug)
 }
 
@@ -144,9 +151,35 @@ fn main() {
         None => None
     };
 
-    let listener = EntryListener::new(
-        file_path
-    ).expect("Error creating EntryListener");
+    let pretty_flag = options.is_present("pretty");
 
-    run(listener, named_pipe);
+    let handler = WindowsHandler::new();
+    let reciever = handler.listen_mft(
+        file_path
+    ).expect("Error creating listener");
+
+    loop {
+        for value in reciever.recv() {
+            let value_str = match pretty_flag{
+                false => match serde_json::to_string(&value){
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("Error creating string from value: {:?}", e);
+                        continue;
+                    }
+                },
+                true => {
+                    match serde_json::to_string_pretty(&value){
+                        Ok(s) => s,
+                        Err(e) => {
+                            eprintln!("Error creating pretty string from value: {:?}", e);
+                            continue;
+                        }
+                    }
+                }
+            };
+
+            println!("{}", value_str);
+        }
+    }
 }

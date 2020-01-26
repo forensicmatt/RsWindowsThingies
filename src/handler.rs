@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::sync::mpsc::Receiver;
+use crate::mft::EntryListener;
 use crate::errors::WinThingError;
 use crate::usn::listener::UsnListenerConfig;
 
@@ -12,12 +13,12 @@ impl WindowsHandler {
     }
     
     /// Listen to a file's MFT changes. Get the reciever.
-    pub fn listen_mft(&self, _file_path: &str) -> Result<Receiver<Value>, WinThingError> {
-        Err(
-            WinThingError::unhandled(
-                "listen_usn unimplemented.".to_string()
-            )
-        )
+    pub fn listen_mft(
+        &self, 
+        file_path: &str
+    ) -> Result<Receiver<Value>, WinThingError> {
+        let listener = EntryListener::new(file_path)?;
+        listener.listen_to_file()
     }
 
     /// Listen to a volume's USN changes. Get the reciever.

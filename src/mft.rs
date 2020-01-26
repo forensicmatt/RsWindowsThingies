@@ -1,11 +1,19 @@
+use std::thread;
 use std::io::Read;
 use serde_json::Value;
 use serde_json::to_value;
 use mft::MftEntry;
 use mft::attribute::{MftAttribute, MftAttributeType};
+use std::sync::mpsc::{
+    channel,
+    Sender, 
+    Receiver
+};
 use byteorder::{ReadBytesExt, LittleEndian};
 use crate::errors::WinThingError;
+use crate::usn::listener::UsnListenerConfig;
 use crate::volume::liventfs::WindowsLiveNtfs;
+use crate::utils::json::get_difference_value;
 use crate::file::helper::{
     get_entry_from_path,
     get_volume_path_from_path
@@ -48,6 +56,64 @@ pub fn custom_entry_value(entry: MftEntry) -> Result<Value, WinThingError> {
     }
     
     Ok(entry_value)
+}
+
+
+fn listen_mft(
+    mut listener: EntryListener,
+    tx: Sender<Value>
+) -> Result<(), WinThingError> {
+    let mut previous_value = listener.get_current_value()?;
+
+    // Send the raw original value
+    // match tx.send(previous_value.clone()) {
+    //     Ok(_) => {},
+    //     Err(error) => {
+    //         eprintln!("error sending value: {:?}", error);
+    //     }
+    // }
+
+    let volume_str = listener.get_volume_string()?;
+
+    let usn_config = UsnListenerConfig::new()
+        .enumerate_paths(false);
+
+    let usn_listener = usn_config.get_listener(&volume_str);
+
+    let usn_rx = usn_listener.listen_to_volume()?;
+
+    loop {
+        let usn_entry_value = match usn_rx.recv() {
+            Ok(e) => e,
+            Err(_) => panic!("Disconnected!"),
+        };
+
+        let entry = &usn_entry_value["file_reference"]["entry"];
+
+        if entry != listener.entry_to_monitor {
+            continue;
+        }
+
+        let current_value = listener.get_current_value().expect("Unable to get current mft entry value");
+
+        let difference_value = get_difference_value(
+            &previous_value,
+            &current_value
+        );
+
+        if difference_value.is_object() {
+            if !difference_value.as_object().unwrap().is_empty(){
+                match tx.send(difference_value) {
+                    Ok(_) => {},
+                    Err(error) => {
+                        eprintln!("error sending value: {:?}", error);
+                    }
+                }
+            }
+    
+            previous_value = current_value.to_owned();
+        }
+    }
 }
 
 
@@ -129,5 +195,21 @@ impl EntryListener {
         )?;
 
         custom_entry_value(mft_entry)
+    }
+
+    pub fn listen_to_file(self) -> Result<Receiver<Value>, WinThingError> {
+        let (tx, rx): (Sender<Value>, Receiver<Value>) = channel();
+
+        let _thread = thread::spawn(move || {
+            match listen_mft(
+                self,
+                tx
+            ) {
+                Ok(_) => println!("thread terminated"),
+                Err(e) => eprintln!("Error listening: {:?}", e)
+            }
+        });
+
+        Ok(rx)
     }
 }
