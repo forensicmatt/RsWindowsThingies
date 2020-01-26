@@ -14,14 +14,14 @@ pub enum OutputFormat {
 
 pub struct CallbackContext {
     format: OutputFormat,
-    tx: Box<Sender<Value>>
+    tx: Sender<Value>
 }
 
 impl CallbackContext {
     pub fn new(tx: Sender<Value>) -> Self {
         Self {
             format: OutputFormat::JsonFormat,
-            tx: Box::new(tx)
+            tx: tx
         }
     }
 
@@ -54,15 +54,11 @@ impl CallbackContext {
         println!("{}", value.to_string());
 
         // Doing anything with self.tx causes app crashes...
-        // Does this have anything to do with double-freeing of reference
-        // like in wevtapi::evt_subscribe_callback where we have to call
-        // Box::leak(user_context);?
-
-        // match tx.send(value) {
-        //     Ok(_) => {},
-        //     Err(error) => {
-        //         eprintln!("error sending value: {:?}", error);
-        //     }
-        // }
+        match self.tx.send(value) {
+            Ok(_) => {},
+            Err(error) => {
+                eprintln!("error sending value: {:?}", error);
+            }
+        }
     }
 }
