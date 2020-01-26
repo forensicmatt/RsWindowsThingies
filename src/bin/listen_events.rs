@@ -175,8 +175,6 @@ fn main() {
         channel_list
     ).expect("Error listening to events");
 
-
-
     loop {
         for event in reciever.recv() {
             println!("{}", event.to_string());

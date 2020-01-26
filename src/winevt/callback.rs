@@ -53,13 +53,16 @@ impl CallbackContext {
 
         println!("{}", value.to_string());
 
-        match self.tx.send(value) {
-            Ok(_) => {},
-            Err(error) => {
-                eprintln!("error sending value: {:?}", error);
-            }
-        }
+        // Doing anything with self.tx causes app crashes...
+        // Does this have anything to do with double-freeing of reference
+        // like in wevtapi::evt_subscribe_callback where we have to call
+        // Box::leak(user_context);?
 
-        //Box::leak(self.tx);
+        // match tx.send(value) {
+        //     Ok(_) => {},
+        //     Err(error) => {
+        //         eprintln!("error sending value: {:?}", error);
+        //     }
+        // }
     }
 }
