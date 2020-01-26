@@ -117,11 +117,7 @@ fn main() {
     }
 
     // Get Session
-    let session: Option<EvtHandle> =
-        match get_session_from_matches(&options).expect("Error getting session from options") {
-            Some(s) => Some(s.0),
-            None => None,
-        };
+    let session: Option<EvtHandle> = get_session_from_matches(&options).expect("Error getting session from options").map(|sess| sess.into_handle());
 
     let format_enum = match options.value_of("format") {
         Some(f) => match f {
@@ -150,13 +146,5 @@ fn main() {
     };
 
     let handler = WindowsHandler::new();
-    let (reciever, _subscriptions) = handler
-        .listen_events(session, historical_flag, format_enum, channel_list)
-        .expect("Error listening to events");
-
-    loop {
-        for event in reciever.recv() {
-            println!("{}", event.to_string());
-        }
-    }
+    handler.listen_events(session, historical_flag, format_enum, channel_list);
 }
