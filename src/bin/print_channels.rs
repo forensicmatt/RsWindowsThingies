@@ -70,8 +70,9 @@ fn main() {
         None => "text",
     };
 
-    let session =
-        get_session_from_matches(&options).expect("Error getting session from options").map(|s| s.into_handle());
+    let session = get_session_from_matches(&options)
+        .expect("Error getting session from options")
+        .map(|s| s.into_handle());
 
     // Get list of channel names
     let channels = get_channel_name_list(&session).expect("Could not get channel name list");

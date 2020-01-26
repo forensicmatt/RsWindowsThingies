@@ -1,7 +1,6 @@
 use crate::utils::xmltojson::xml_string_to_json;
-use crossbeam::channel::{Sender};
+use crossbeam::channel::Sender;
 use serde_json::Value;
-
 
 #[derive(Debug)]
 pub enum OutputFormat {
@@ -39,8 +38,6 @@ impl CallbackContext {
             },
             OutputFormat::XmlFormat => Value::String(xml_string),
         };
-
-        println!("{}", value.to_string());
 
         match self.tx.send(value) {
             Ok(_) => {}

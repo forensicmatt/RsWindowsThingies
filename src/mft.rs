@@ -61,11 +61,8 @@ fn listen_mft(mut listener: EntryListener, tx: Sender<Value>) -> Result<(), WinT
     // }
 
     let volume_str = listener.get_volume_string()?;
-
     let usn_config = UsnListenerConfig::new().enumerate_paths(false);
-
     let usn_listener = usn_config.get_listener(&volume_str);
-
     let usn_rx = usn_listener.listen_to_volume()?;
 
     loop {

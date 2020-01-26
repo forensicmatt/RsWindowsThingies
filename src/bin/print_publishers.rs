@@ -211,8 +211,9 @@ fn main() {
     }
 
     // Get Session
-    let session: Option<EvtHandle> =
-        get_session_from_matches(&options).expect("Error getting session from options").map(|sess| sess.into_handle());
+    let session: Option<EvtHandle> = get_session_from_matches(&options)
+        .expect("Error getting session from options")
+        .map(|sess| sess.into_handle());
 
     let out_format = match options.value_of("format") {
         Some(f) => f,

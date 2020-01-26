@@ -5,8 +5,6 @@ use std::os::windows::io::FromRawHandle;
 use std::ptr::null_mut;
 use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 
-
-
 use winapi::um::fileapi::CreateFileW;
 use winapi::um::fileapi::OPEN_EXISTING;
 use winapi::um::winnt::GENERIC_WRITE;
