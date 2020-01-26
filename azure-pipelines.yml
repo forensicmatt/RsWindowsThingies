@@ -17,7 +17,7 @@ pool:
 steps:
   - script: |
       curl -sSf -o rustup-init.exe https://win.rustup.rs
-      rustup-init.exe -y --default-host %target% --default-toolchain %RUSTUP_TOOLCHAIN%
+      rustup-init.exe -y --default-host x86_64-pc-windows-msvc --default-toolchain %RUSTUP_TOOLCHAIN%
       echo "##vso[task.setvariable variable=PATH;]%PATH%;%USERPROFILE%\.cargo\bin"
     displayName: Windows install rust
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
