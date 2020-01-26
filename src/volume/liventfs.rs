@@ -10,29 +10,6 @@ use crate::file::helper::query_file_record;
 use crate::devio::volume::get_ntfs_volume_data;
 
 
-pub struct WindowsHandler {}
-
-impl WindowsHandler {
-    /// Listen to a file's MFT changes. Get the reciever.
-    pub fn listen_mft(&self, _file_path: &str) -> Result<Receiver<Value>, WinThingError> {
-        Err(
-            WinThingError::unhandled(
-                "listen_usn unimplemented.".to_string()
-            )
-        )
-    }
-
-    /// Listen to a volume's USN changes. Get the reciever.
-    pub fn listen_usn(&self, _volume_path: &str) -> Result<Receiver<Value>, WinThingError> {
-        Err(
-            WinThingError::unhandled(
-                "listen_usn unimplemented.".to_string()
-            )
-        )
-    }
-}
-
-
 /// Struct for interacting with a live NTFS volume via Windows API
 ///
 pub struct WindowsLiveNtfs {
@@ -83,7 +60,6 @@ impl WindowsLiveNtfs {
         mft_buffer.as_entry()
     }
 }
-
 impl Clone for WindowsLiveNtfs {
     fn clone(&self) -> Self {
         Self::from_volume_path(

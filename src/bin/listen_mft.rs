@@ -1,18 +1,13 @@
 extern crate serde_json;
 use clap::{App, Arg};
-use std::process::exit;
-use std::io::Write;
-use std::thread;
 use std::fs::File;
-use std::sync::mpsc;
-use std::sync::mpsc::{Sender, Receiver};
-use rusty_usn::record::UsnEntry;
+use std::io::Write;
+use std::process::exit;
 use rswinthings::file::pipe::create_pipe;
 use rswinthings::utils::json::get_difference_value;
 use rswinthings::utils::debug::set_debug_level;
 use rswinthings::mft::EntryListener;
-use rswinthings::usn::listener::UsnVolumeListener;
-use rswinthings::file::FileHandle;
+use rswinthings::usn::listener::UsnListenerConfig;
 
 static VERSION: &'static str = "0.2.0";
 
@@ -50,38 +45,37 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
 
 
 fn run(mut listener: EntryListener, mut named_pipe_opt: Option<File>) {
-    let (tx, rx): (Sender<UsnEntry>, Receiver<UsnEntry>) = mpsc::channel();
-
     let mut previous_value = listener.get_current_value().expect("Unable to get current mft entry value");
     match named_pipe_opt {
         Some(ref mut fh) => {
-            fh.write(&previous_value.to_string().into_bytes());
+            fh.write(
+                &previous_value.to_string().into_bytes()
+            ).expect("Error writing value");
         },
         None => {
             println!("{}", previous_value.to_string());
         }
     }
 
-    let volume_str = listener.get_volume_string().expect("Error getting volume path.");
-    let usn_volume_listener = UsnVolumeListener::new(
-        volume_str,
-        false,
-        tx.clone()
-    );
+    let volume_str = listener.get_volume_string()
+                             .expect("Error getting volume path.");
 
-    let _thread = thread::spawn(move || {
-        usn_volume_listener.listen_to_volume(None)
-    });
+
+    let usn_config = UsnListenerConfig::new()
+        .enumerate_paths(false);
+    let usn_listener = usn_config.get_listener(&volume_str);
+    let usn_rx = usn_listener.listen_to_volume()
+                             .expect("Unable to listen to USN");
 
     loop {
-        let usn_entry = match rx.recv() {
+        let usn_entry_value = match usn_rx.recv() {
             Ok(e) => e,
             Err(_) => panic!("Disconnected!"),
         };
 
-        let file_ref = usn_entry.record.get_file_reference();
+        let entry = &usn_entry_value["file_reference"]["entry"];
 
-        if file_ref.entry != listener.entry_to_monitor as u64 {
+        if entry != listener.entry_to_monitor {
             continue;
         }
 
@@ -105,7 +99,9 @@ fn run(mut listener: EntryListener, mut named_pipe_opt: Option<File>) {
                 
                 match named_pipe_opt {
                     Some(ref mut fh) => {
-                        fh.write(&format!("{}", value_str).into_bytes());
+                        fh.write(
+                            &format!("{}", value_str).into_bytes()
+                        ).expect("Unable to write value");
                     },
                     None => {
                         println!("{}", value_str);

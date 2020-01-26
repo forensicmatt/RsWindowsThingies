@@ -5,6 +5,7 @@ use minidom::Error as MinidomError;
 use std::string::FromUtf8Error;
 use std::string::FromUtf16Error;
 use serde_json::Error as SerdeJsonError;
+use rusty_usn::error::UsnError;
 use winapi::shared::ntdef::WCHAR;
 use winapi::um::winbase::{
     FormatMessageW, 
@@ -28,6 +29,7 @@ pub enum ErrorType {
     SerdeJsonError,
     IoError,
     MftError,
+    UsnError,
     InvalidUsnJournalData
 }
 
@@ -170,6 +172,15 @@ impl From<MftError> for WinThingError {
         Self {
             message: format!("{}", err),
             kind: ErrorType::MftError,
+        }
+    }
+}
+
+impl From<UsnError> for WinThingError {
+    fn from(err: UsnError) -> Self {
+        Self {
+            message: format!("{}", err),
+            kind: ErrorType::UsnError,
         }
     }
 }
