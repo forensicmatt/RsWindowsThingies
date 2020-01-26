@@ -1,18 +1,17 @@
-use std::ffi::OsString;
-use std::ptr::null_mut;
-use winapi::um::winevt::*;
-use winapi::ctypes::c_void;
-use winapi::um::winevt::EvtClose;
-use std::os::windows::prelude::*;
-use winapi::shared::minwindef::{DWORD};
-use winapi::um::errhandlingapi::GetLastError;
-use winapi::shared::winerror::ERROR_NO_MORE_ITEMS;
-use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
-use crate::winevt::EvtHandle;
 use crate::errors::WinThingError;
-use crate::winevt::variant::EvtVariant;
 use crate::winevt::callback::CallbackContext;
-
+use crate::winevt::variant::EvtVariant;
+use crate::winevt::EvtHandle;
+use std::ffi::OsString;
+use std::os::windows::prelude::*;
+use std::ptr::null_mut;
+use winapi::ctypes::c_void;
+use winapi::shared::minwindef::DWORD;
+use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
+use winapi::shared::winerror::ERROR_NO_MORE_ITEMS;
+use winapi::um::errhandlingapi::GetLastError;
+use winapi::um::winevt::EvtClose;
+use winapi::um::winevt::*;
 
 /// BOOL EvtRender(
 ///   EVT_HANDLE Context,
@@ -23,9 +22,7 @@ use crate::winevt::callback::CallbackContext;
 ///   PDWORD     BufferUsed,
 ///   PDWORD     PropertyCount
 /// );
-pub fn evt_render(
-    event_handle: EVT_HANDLE
-) -> Result<String, WinThingError> {
+pub fn evt_render(event_handle: EVT_HANDLE) -> Result<String, WinThingError> {
     let mut buffer_used: DWORD = 0;
     let mut property_count: DWORD = 0;
 
@@ -40,15 +37,13 @@ pub fn evt_render(
             0,
             null_mut(),
             &mut buffer_used,
-            &mut property_count
+            &mut property_count,
         )
     };
 
     // We expect this to fail but return the buffer size needed.
     if result == 0 {
-        let last_error: DWORD = unsafe {
-            GetLastError()
-        };
+        let last_error: DWORD = unsafe { GetLastError() };
 
         if last_error == ERROR_INSUFFICIENT_BUFFER {
             let buffer: Vec<u16> = vec![0; buffer_used as usize];
@@ -61,7 +56,7 @@ pub fn evt_render(
                     buffer.len() as _,
                     buffer.as_ptr() as _,
                     &mut buffer_used,
-                    &mut property_count
+                    &mut property_count,
                 )
             };
 
@@ -72,38 +67,29 @@ pub fn evt_render(
                 match buffer.iter().position(|&x| x == 0) {
                     Some(i) => {
                         index = i;
-                    },
+                    }
                     None => {}
                 }
 
-                let xml_string = OsString::from_wide(
-                    &buffer[..index]
-                ).to_string_lossy().to_string();
+                let xml_string = OsString::from_wide(&buffer[..index])
+                    .to_string_lossy()
+                    .to_string();
 
                 return Ok(xml_string);
             } else {
-                let last_error: DWORD = unsafe {
-                    GetLastError()
-                };
+                let last_error: DWORD = unsafe { GetLastError() };
 
-                return Err(WinThingError::os_error(
-                    last_error as i32
-                ));
+                return Err(WinThingError::os_error(last_error as i32));
             }
         } else {
-            return Err(WinThingError::os_error(
-                last_error as i32
-            ));
+            return Err(WinThingError::os_error(last_error as i32));
         }
     } else {
-        Err(
-            WinThingError::unhandled(
-                "Expected Error on first EvtRender call.".to_owned()
-            )
-        )
+        Err(WinThingError::unhandled(
+            "Expected Error on first EvtRender call.".to_owned(),
+        ))
     }
 }
-
 
 /// DWORD EvtSubscribeCallback(
 ///   EVT_SUBSCRIBE_NOTIFY_ACTION Action,
@@ -113,22 +99,24 @@ pub fn evt_render(
 pub extern "system" fn evt_subscribe_callback(
     action: EVT_SUBSCRIBE_NOTIFY_ACTION,
     user_context: *mut c_void,
-    event_handle: EVT_HANDLE
+    event_handle: EVT_HANDLE,
 ) -> u32 {
     if action != EvtSubscribeActionDeliver {
-        error!("Expected EvtSubscribeActionDeliver for evt_subscribe_callback but found {:?}", action);
+        error!(
+            "Expected EvtSubscribeActionDeliver for evt_subscribe_callback but found {:?}",
+            action
+        );
         return 0;
     }
 
     let user_context: *mut CallbackContext = user_context as *mut _;
 
     match evt_render(event_handle) {
-        Ok(xml_event) => {
-            unsafe {
-                user_context.as_ref().expect("CallbackContext cannot be null").handle_record(
-                    xml_event
-                );
-            }
+        Ok(xml_event) => unsafe {
+            user_context
+                .as_ref()
+                .expect("CallbackContext cannot be null")
+                .handle_record(xml_event);
         },
         Err(e) => {
             error!("Error calling evt_render(): {:?}", e);
@@ -143,7 +131,6 @@ pub extern "system" fn evt_subscribe_callback(
     return 0;
 }
 
-
 /// EVT_HANDLE EvtSubscribe(
 ///   EVT_HANDLE             Session,
 ///   HANDLE                 SignalEvent,
@@ -155,30 +142,30 @@ pub extern "system" fn evt_subscribe_callback(
 ///   DWORD                  Flags
 /// );
 pub fn register_event_callback(
-        session: &Option<EvtHandle>,
-        channel_path: &String, 
-        query: Option<String>,
-        flags: Option<u32>,
-        context: &mut CallbackContext
+    session: &Option<EvtHandle>,
+    channel_path: &String,
+    query: Option<String>,
+    flags: Option<u32>,
+    context: &mut CallbackContext,
 ) -> Result<EvtHandle, WinThingError> {
     let session = match session {
         Some(s) => s.0,
-        None => null_mut()
+        None => null_mut(),
     };
-    
+
     // This is null becuase we are using a callback
     let signal_event = null_mut();
 
     // Create the wide string buffer
-    let mut channel_path_u16 : Vec<u16> = channel_path.encode_utf16().collect();
+    let mut channel_path_u16: Vec<u16> = channel_path.encode_utf16().collect();
     channel_path_u16.resize(channel_path.len() + 1, 0);
 
     // Get the query string, or if None was passed, make it *
     let query_str = match query {
         Some(q) => q,
-        None => "*".to_owned()
+        None => "*".to_owned(),
     };
-    let mut query_str_u16 : Vec<u16> = query_str.encode_utf16().collect();
+    let mut query_str_u16: Vec<u16> = query_str.encode_utf16().collect();
     query_str_u16.resize(query_str.len() + 1, 0);
 
     // Bookmarks are not currently implemented
@@ -186,7 +173,7 @@ pub fn register_event_callback(
 
     let flags = match flags {
         Some(f) => f,
-        None => EvtSubscribeToFutureEvents
+        None => EvtSubscribeToFutureEvents,
     };
 
     // This handle will need to be closed when the subscription is done...
@@ -199,54 +186,35 @@ pub fn register_event_callback(
             bookmark,
             context as *mut _ as *mut c_void,
             Some(evt_subscribe_callback),
-            flags
+            flags,
         )
     };
 
     if subscription_handle.is_null() {
-        return Err(
-            WinThingError::from_windows_last_error()
-        );
+        return Err(WinThingError::from_windows_last_error());
     }
 
-    Ok(
-        EvtHandle(
-            subscription_handle
-        )
-    )
+    Ok(EvtHandle(subscription_handle))
 }
-
 
 /// EVT_HANDLE EvtOpenPublisherEnum(
 ///   EVT_HANDLE Session,
 ///   DWORD      Flags
 /// );
-pub fn evt_open_publisher_enum(
-    session: &Option<EvtHandle>
-) -> Result<EvtHandle, WinThingError> {
+pub fn evt_open_publisher_enum(session: &Option<EvtHandle>) -> Result<EvtHandle, WinThingError> {
     let session = match session {
         Some(s) => s.0,
-        None => null_mut()
+        None => null_mut(),
     };
 
-    let enum_handle = unsafe {
-        EvtOpenPublisherEnum(
-            session,
-            0
-        )
-    };
+    let enum_handle = unsafe { EvtOpenPublisherEnum(session, 0) };
 
     if enum_handle.is_null() {
-        return Err(
-            WinThingError::from_windows_last_error()
-        );
+        return Err(WinThingError::from_windows_last_error());
     }
 
-    Ok(
-        EvtHandle(enum_handle)
-    )
+    Ok(EvtHandle(enum_handle))
 }
-
 
 /// BOOL EvtNextPublisherId(
 ///   EVT_HANDLE PublisherEnum,
@@ -254,24 +222,13 @@ pub fn evt_open_publisher_enum(
 ///   LPWSTR     PublisherIdBuffer,
 ///   PDWORD     PublisherIdBufferUsed
 /// );
-pub fn evt_next_publisher_id(
-    publisher_enum: &EvtHandle
-) -> Result<Option<String>, WinThingError> {
+pub fn evt_next_publisher_id(publisher_enum: &EvtHandle) -> Result<Option<String>, WinThingError> {
     let mut buffer_used: DWORD = 0;
 
-    let result = unsafe {
-        EvtNextPublisherId(
-            publisher_enum.0,
-            0,
-            null_mut(),
-            &mut buffer_used
-        )
-    };
+    let result = unsafe { EvtNextPublisherId(publisher_enum.0, 0, null_mut(), &mut buffer_used) };
 
     if result == 0 {
-        let last_error: DWORD = unsafe {
-            GetLastError()
-        };
+        let last_error: DWORD = unsafe { GetLastError() };
 
         if last_error == ERROR_INSUFFICIENT_BUFFER {
             let buffer: Vec<u16> = vec![0; buffer_used as usize];
@@ -281,43 +238,30 @@ pub fn evt_next_publisher_id(
                     publisher_enum.0,
                     buffer.len() as _,
                     buffer.as_ptr() as _,
-                    &mut buffer_used
+                    &mut buffer_used,
                 )
             };
 
             if result != 0 {
-                let provider_name = OsString::from_wide(
-                    &buffer[..buffer_used as usize - 1]
-                ).to_string_lossy().to_string();
+                let provider_name = OsString::from_wide(&buffer[..buffer_used as usize - 1])
+                    .to_string_lossy()
+                    .to_string();
 
                 return Ok(Some(provider_name));
+            } else {
+                return Err(WinThingError::from_windows_last_error());
             }
-            else {
-                return Err(
-                    WinThingError::from_windows_last_error()
-                );
-            }
-        }
-        else if last_error == ERROR_NO_MORE_ITEMS {
+        } else if last_error == ERROR_NO_MORE_ITEMS {
             return Ok(None);
+        } else {
+            return Err(WinThingError::from_windows_error_code(last_error));
         }
-        else {
-            return Err(
-                WinThingError::from_windows_error_code(
-                    last_error
-                )
-            );
-        }
-    } 
-    else {
-        Err(
-            WinThingError::unhandled(
-                "Expected Error on first EvtRender call.".to_owned()
-            )
-        )
+    } else {
+        Err(WinThingError::unhandled(
+            "Expected Error on first EvtRender call.".to_owned(),
+        ))
     }
 }
-
 
 /// EVT_HANDLE EvtOpenPublisherMetadata(
 ///   EVT_HANDLE Session,
@@ -329,11 +273,11 @@ pub fn evt_next_publisher_id(
 pub fn evt_open_publisher_metadata(
     session: &Option<EvtHandle>,
     publisher_id: Option<String>,
-    logfile_path: Option<String>
+    logfile_path: Option<String>,
 ) -> Result<EvtHandle, WinThingError> {
     let session = match session {
         Some(s) => s.0,
-        None => null_mut()
+        None => null_mut(),
     };
 
     let mut string_u16: Vec<u16>;
@@ -343,40 +287,28 @@ pub fn evt_open_publisher_metadata(
             // Needs to be null terminated
             string_u16.resize(s.len() + 1, 0);
             string_u16.as_ptr()
-        },
-        None => null_mut()
+        }
+        None => null_mut(),
     };
 
     let logfile_path = match logfile_path {
         Some(s) => {
-            let mut string_u16 : Vec<u16> = s.encode_utf16().collect();
+            let mut string_u16: Vec<u16> = s.encode_utf16().collect();
             string_u16.resize(s.len() + 1, 0);
             string_u16.as_ptr()
-        },
-        None => null_mut()
+        }
+        None => null_mut(),
     };
 
-    let meta_handle = unsafe {
-        EvtOpenPublisherMetadata(
-            session,
-            publisher_id as _,
-            logfile_path as _,
-            0,
-            0
-        )
-    };
+    let meta_handle =
+        unsafe { EvtOpenPublisherMetadata(session, publisher_id as _, logfile_path as _, 0, 0) };
 
     if meta_handle.is_null() {
-        return Err(
-            WinThingError::from_windows_last_error()
-        );
+        return Err(WinThingError::from_windows_last_error());
     }
 
-    Ok(
-        EvtHandle(meta_handle)
-    )
+    Ok(EvtHandle(meta_handle))
 }
-
 
 /// BOOL EvtGetPublisherMetadataProperty(
 ///   EVT_HANDLE                         PublisherMetadata,
@@ -400,15 +332,13 @@ pub fn evt_get_publisher_metadata_property(
             0,
             0,
             null_mut(),
-            &mut buffer_used
+            &mut buffer_used,
         )
     };
 
     // We expect this to fail but return the buffer size needed.
     if result == 0 {
-        let last_error: DWORD = unsafe {
-            GetLastError()
-        };
+        let last_error: DWORD = unsafe { GetLastError() };
 
         if last_error == ERROR_INSUFFICIENT_BUFFER {
             let mut buffer: Vec<u8> = vec![0; buffer_used as usize];
@@ -420,70 +350,42 @@ pub fn evt_get_publisher_metadata_property(
                     0,
                     buffer.len() as _,
                     buffer.as_mut_ptr() as *mut EVT_VARIANT,
-                    &mut buffer_used
+                    &mut buffer_used,
                 )
             };
 
             if result != 0 {
-                let variant: EVT_VARIANT = unsafe {
-                    std::ptr::read(
-                        buffer.as_ptr() as *const _
-                    ) 
-                };
+                let variant: EVT_VARIANT = unsafe { std::ptr::read(buffer.as_ptr() as *const _) };
 
-                return Ok(
-                    EvtVariant(variant)
-                );
+                return Ok(EvtVariant(variant));
+            } else {
+                return Err(WinThingError::from_windows_last_error());
             }
-            else {
-                return Err(
-                    WinThingError::from_windows_last_error()
-                );
-            }
+        } else {
+            return Err(WinThingError::from_windows_error_code(last_error));
         }
-        else {
-            return Err(
-                WinThingError::from_windows_error_code(
-                    last_error
-                )
-            );
-        }
-    }
-    else {
-        Err(
-            WinThingError::unhandled(
-                "Expected Error on first EvtGetPublisherMetadataProperty call.".to_owned()
-            )
-        )
+    } else {
+        Err(WinThingError::unhandled(
+            "Expected Error on first EvtGetPublisherMetadataProperty call.".to_owned(),
+        ))
     }
 }
-
 
 /// BOOL EvtGetObjectArraySize(
 ///   EVT_OBJECT_ARRAY_PROPERTY_HANDLE ObjectArray,
 ///   PDWORD                           ObjectArraySize
 /// );
-pub fn evt_get_object_array_size(
-    object_array: &EvtHandle
-) -> Result<u32, WinThingError> {
+pub fn evt_get_object_array_size(object_array: &EvtHandle) -> Result<u32, WinThingError> {
     let mut object_array_size: DWORD = 0;
 
-    let result = unsafe {
-        EvtGetObjectArraySize(
-            object_array.0,
-            &mut object_array_size
-        )
-    };
+    let result = unsafe { EvtGetObjectArraySize(object_array.0, &mut object_array_size) };
 
     if result == 0 {
-        return Err(
-            WinThingError::from_windows_last_error()
-        );
+        return Err(WinThingError::from_windows_last_error());
     }
 
     Ok(object_array_size)
 }
-
 
 /// BOOL EvtGetObjectArrayProperty(
 ///   EVT_OBJECT_ARRAY_PROPERTY_HANDLE ObjectArray,
@@ -497,7 +399,7 @@ pub fn evt_get_object_array_size(
 pub fn evt_get_object_array_property(
     object_array: &EvtHandle,
     index: DWORD,
-    property_id: EVT_PUBLISHER_METADATA_PROPERTY_ID
+    property_id: EVT_PUBLISHER_METADATA_PROPERTY_ID,
 ) -> Result<EvtVariant, WinThingError> {
     let mut buffer_used: DWORD = 0;
 
@@ -509,15 +411,13 @@ pub fn evt_get_object_array_property(
             0,
             0,
             null_mut(),
-            &mut buffer_used
+            &mut buffer_used,
         )
     };
 
     // We expect this to fail but return the buffer size needed.
     if result == 0 {
-        let last_error: DWORD = unsafe {
-            GetLastError()
-        };
+        let last_error: DWORD = unsafe { GetLastError() };
 
         if last_error == ERROR_INSUFFICIENT_BUFFER {
             let mut buffer: Vec<u8> = vec![0; buffer_used as usize];
@@ -530,46 +430,26 @@ pub fn evt_get_object_array_property(
                     0,
                     buffer.len() as _,
                     buffer.as_mut_ptr() as *mut EVT_VARIANT,
-                    &mut buffer_used
+                    &mut buffer_used,
                 )
             };
 
             if result != 0 {
-                let variant: EVT_VARIANT = unsafe {
-                    std::ptr::read(
-                        buffer.as_ptr() as *const _
-                    ) 
-                };
+                let variant: EVT_VARIANT = unsafe { std::ptr::read(buffer.as_ptr() as *const _) };
 
-                return Ok(
-                    EvtVariant(
-                        variant
-                    )
-                );
+                return Ok(EvtVariant(variant));
+            } else {
+                return Err(WinThingError::from_windows_last_error());
             }
-            else {
-                return Err(
-                    WinThingError::from_windows_last_error()
-                );
-            }
+        } else {
+            return Err(WinThingError::from_windows_error_code(last_error));
         }
-        else {
-            return Err(
-                WinThingError::from_windows_error_code(
-                    last_error
-                )
-            );
-        }
-    }
-    else {
-        Err(
-            WinThingError::unhandled(
-                "Expected Error on first EvtGetObjectArrayProperty call.".to_owned()
-            )
-        )
+    } else {
+        Err(WinThingError::unhandled(
+            "Expected Error on first EvtGetObjectArrayProperty call.".to_owned(),
+        ))
     }
 }
-
 
 /// BOOL EvtFormatMessage(
 ///   EVT_HANDLE   PublisherMetadata,
@@ -585,7 +465,7 @@ pub fn evt_get_object_array_property(
 pub fn evt_format_message(
     publisher_metadata: Option<&EvtHandle>,
     event: Option<&EvtHandle>,
-    message_id: DWORD
+    message_id: DWORD,
 ) -> Result<String, WinThingError> {
     let mut buffer_used: DWORD = 0;
 
@@ -610,15 +490,13 @@ pub fn evt_format_message(
             flags,
             0,
             null_mut(),
-            &mut buffer_used
+            &mut buffer_used,
         )
     };
 
     // We expect this to fail but return the buffer size needed.
     if result == 0 {
-        let last_error: DWORD = unsafe {
-            GetLastError()
-        };
+        let last_error: DWORD = unsafe { GetLastError() };
 
         if last_error == ERROR_INSUFFICIENT_BUFFER {
             let buffer: Vec<u16> = vec![0; buffer_used as usize];
@@ -633,37 +511,26 @@ pub fn evt_format_message(
                     flags,
                     buffer.len() as _,
                     buffer.as_ptr() as _,
-                    &mut buffer_used
+                    &mut buffer_used,
                 )
             };
 
             if result != 0 {
                 // Remove terminating null
-                let message_string = OsString::from_wide(
-                    &buffer[..buffer_used as usize - 1]
-                ).to_string_lossy().to_string();
+                let message_string = OsString::from_wide(&buffer[..buffer_used as usize - 1])
+                    .to_string_lossy()
+                    .to_string();
 
                 return Ok(message_string);
+            } else {
+                return Err(WinThingError::from_windows_last_error());
             }
-            else {
-                return Err(
-                    WinThingError::from_windows_last_error()
-                );
-            }
+        } else {
+            return Err(WinThingError::from_windows_error_code(last_error));
         }
-        else {
-            return Err(
-                WinThingError::from_windows_error_code(
-                    last_error
-                )
-            );
-        }
-    }
-    else {
-        Err(
-            WinThingError::unhandled(
-                "Expected Error on first EvtFormatMessage call.".to_owned()
-            )
-        )
+    } else {
+        Err(WinThingError::unhandled(
+            "Expected Error on first EvtFormatMessage call.".to_owned(),
+        ))
     }
 }

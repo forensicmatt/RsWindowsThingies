@@ -1,27 +1,22 @@
-use serde_json::Value;
-use std::sync::mpsc::{
-    channel,
-    Sender, 
-    Receiver
-};
 use crate::utils::xmltojson::xml_string_to_json;
-
+use serde_json::Value;
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 pub enum OutputFormat {
     XmlFormat,
-    JsonFormat
+    JsonFormat,
 }
 
 pub struct CallbackContext {
     format: OutputFormat,
-    tx: Sender<Value>
+    tx: Sender<Value>,
 }
 
 impl CallbackContext {
     pub fn new(tx: Sender<Value>) -> Self {
         Self {
             format: OutputFormat::JsonFormat,
-            tx: tx
+            tx: tx,
         }
     }
 
@@ -37,25 +32,21 @@ impl CallbackContext {
 
     pub fn handle_record(&self, xml_string: String) {
         let value = match self.format {
-            OutputFormat::JsonFormat => {
-                match xml_string_to_json(xml_string) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        eprintln!("Error converting XML string to Value: {:?}", e);
-                        return;
-                    }
+            OutputFormat::JsonFormat => match xml_string_to_json(xml_string) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("Error converting XML string to Value: {:?}", e);
+                    return;
                 }
             },
-            OutputFormat::XmlFormat => {
-                Value::String(xml_string)
-            }
+            OutputFormat::XmlFormat => Value::String(xml_string),
         };
 
         println!("{}", value.to_string());
 
         // Doing anything with self.tx causes app crashes...
         match self.tx.send(value) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(error) => {
                 eprintln!("error sending value: {:?}", error);
             }

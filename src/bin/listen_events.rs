@@ -1,19 +1,16 @@
-extern crate log;
-extern crate clap;
 extern crate chrono;
+extern crate clap;
+extern crate log;
 extern crate serde_json;
 use clap::{App, Arg};
-use std::process::exit;
-use rswinthings::utils::debug::set_debug_level;
-use rswinthings::winevt::channels::get_channel_name_list;
-use rswinthings::winevt::callback::OutputFormat;
-use rswinthings::utils::cli::{
-    add_session_options_to_app,
-    get_session_from_matches
-};
-use rswinthings::winevt::EvtHandle;
 use rswinthings::handler::WindowsHandler;
+use rswinthings::utils::cli::{add_session_options_to_app, get_session_from_matches};
+use rswinthings::utils::debug::set_debug_level;
+use rswinthings::winevt::callback::OutputFormat;
+use rswinthings::winevt::channels::get_channel_name_list;
 use rswinthings::winevt::channels::ChannelConfig;
+use rswinthings::winevt::EvtHandle;
+use std::process::exit;
 
 static VERSION: &'static str = "0.3.0";
 static DESCRIPTION: &'static str = r"
@@ -24,7 +21,6 @@ query and uses the Windows API to monitor for events on the applicable
 channels. Use the print_channels tool to list available channels and
 their configurations.
 ";
-
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
     let channel = Arg::with_name("channel")
@@ -76,15 +72,11 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
     add_session_options_to_app(app)
 }
 
-
-fn get_list_from_system(
-    session: &Option<EvtHandle>
-) -> Vec<String> {
+fn get_list_from_system(session: &Option<EvtHandle>) -> Vec<String> {
     let mut channels = Vec::new();
 
     // Get a list off all the channels
-    let channel_list = get_channel_name_list(&session)
-        .expect("Error getting channel list");
+    let channel_list = get_channel_name_list(&session).expect("Error getting channel list");
 
     // Iterate each channel in our available channels
     for channel in channel_list {
@@ -115,40 +107,32 @@ fn get_list_from_system(
     channels
 }
 
-
 fn main() {
     let app = make_app();
     let options = app.get_matches();
 
     match options.value_of("debug") {
-        Some(d) => set_debug_level(d).expect(
-            "Error setting debug level"
-        ),
-        None => set_debug_level("Error").expect(
-            "Error setting debug level"
-        )
+        Some(d) => set_debug_level(d).expect("Error setting debug level"),
+        None => set_debug_level("Error").expect("Error setting debug level"),
     }
 
     // Get Session
-    let session: Option<EvtHandle> = match get_session_from_matches(
-        &options
-    ).expect("Error getting session from options") {
-        Some(s) => Some(s.0),
-        None => None
-    };
+    let session: Option<EvtHandle> =
+        match get_session_from_matches(&options).expect("Error getting session from options") {
+            Some(s) => Some(s.0),
+            None => None,
+        };
 
     let format_enum = match options.value_of("format") {
-        Some(f) => {
-            match f {
-                "xml" => OutputFormat::XmlFormat,
-                "jsonl" => OutputFormat::JsonFormat,
-                other => {
-                    eprintln!("Unkown format: {}", other);
-                    exit(-1);
-                }
+        Some(f) => match f {
+            "xml" => OutputFormat::XmlFormat,
+            "jsonl" => OutputFormat::JsonFormat,
+            other => {
+                eprintln!("Unkown format: {}", other);
+                exit(-1);
             }
         },
-        None => OutputFormat::JsonFormat
+        None => OutputFormat::JsonFormat,
     };
 
     // Historical flag
@@ -161,19 +145,14 @@ fn main() {
                 list.push(ch_str.to_string())
             }
             list
-        },
-        None => get_list_from_system(
-            &session
-        )
+        }
+        None => get_list_from_system(&session),
     };
 
     let handler = WindowsHandler::new();
-    let (reciever, _subscriptions) = handler.listen_events(
-        session,
-        historical_flag,
-        format_enum,
-        channel_list
-    ).expect("Error listening to events");
+    let (reciever, _subscriptions) = handler
+        .listen_events(session, historical_flag, format_enum, channel_list)
+        .expect("Error listening to events");
 
     loop {
         for event in reciever.recv() {

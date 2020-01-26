@@ -1,2 +1,2 @@
-pub mod structs;
 pub mod listener;
+pub mod structs;

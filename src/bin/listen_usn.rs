@@ -1,11 +1,10 @@
 use clap::{App, Arg};
-use std::process::exit;
-use rswinthings::utils::debug::set_debug_level;
 use rswinthings::handler::WindowsHandler;
 use rswinthings::usn::listener::UsnListenerConfig;
+use rswinthings::utils::debug::set_debug_level;
+use std::process::exit;
 
 static VERSION: &'static str = "0.2.0";
-
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
     let source_arg = Arg::with_name("source")
@@ -46,23 +45,18 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(verbose)
 }
 
-
 fn main() {
     let app = make_app();
     let options = app.get_matches();
 
     // Set debug
     match options.value_of("debug") {
-        Some(d) => set_debug_level(d).expect(
-            "Error setting debug level"
-        ),
+        Some(d) => set_debug_level(d).expect("Error setting debug level"),
         None => {}
     }
 
     let source_volume = match options.value_of("source") {
-        Some(s) => {
-            s
-        },
+        Some(s) => s,
         None => {
             eprintln!("listen_usn requires a source volume.");
             exit(-1);
@@ -73,19 +67,12 @@ fn main() {
         Some(m) => {
             if m.starts_with("0x") {
                 let without_prefix = m.trim_start_matches("0x");
-                Some(
-                    u32::from_str_radix(
-                        without_prefix, 16
-                    ).expect("Error converting mask to u32")
-                )
+                Some(u32::from_str_radix(without_prefix, 16).expect("Error converting mask to u32"))
+            } else {
+                Some(m.parse::<u32>().expect("Error converting mask to u32"))
             }
-            else {
-                Some(
-                    m.parse::<u32>().expect("Error converting mask to u32")
-                )
-            }
-        },
-        None => None
+        }
+        None => None,
     };
 
     let handler = WindowsHandler::new();
@@ -96,14 +83,13 @@ fn main() {
     match mask_opt {
         Some(m) => {
             config = config.mask(m);
-        },
+        }
         None => {}
     }
 
-    let reciever = handler.listen_usn(
-        source_volume,
-        Some(config)
-    ).expect("Error creating listener");
+    let reciever = handler
+        .listen_usn(source_volume, Some(config))
+        .expect("Error creating listener");
 
     loop {
         for event in reciever.recv() {

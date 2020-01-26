@@ -1,17 +1,16 @@
 extern crate serde_json;
 use clap::{App, Arg};
+use rswinthings::file::pipe::create_pipe;
+use rswinthings::handler::WindowsHandler;
+use rswinthings::mft::EntryListener;
+use rswinthings::usn::listener::UsnListenerConfig;
+use rswinthings::utils::debug::set_debug_level;
+use rswinthings::utils::json::get_difference_value;
 use std::fs::File;
 use std::io::Write;
 use std::process::exit;
-use rswinthings::file::pipe::create_pipe;
-use rswinthings::utils::json::get_difference_value;
-use rswinthings::utils::debug::set_debug_level;
-use rswinthings::mft::EntryListener;
-use rswinthings::usn::listener::UsnListenerConfig;
-use rswinthings::handler::WindowsHandler;
 
 static VERSION: &'static str = "0.2.0";
-
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
     let file_arg = Arg::with_name("file")
@@ -50,29 +49,29 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(debug)
 }
 
-
 fn run(mut listener: EntryListener, mut named_pipe_opt: Option<File>) {
-    let mut previous_value = listener.get_current_value().expect("Unable to get current mft entry value");
+    let mut previous_value = listener
+        .get_current_value()
+        .expect("Unable to get current mft entry value");
     match named_pipe_opt {
         Some(ref mut fh) => {
-            fh.write(
-                &previous_value.to_string().into_bytes()
-            ).expect("Error writing value");
-        },
+            fh.write(&previous_value.to_string().into_bytes())
+                .expect("Error writing value");
+        }
         None => {
             println!("{}", previous_value.to_string());
         }
     }
 
-    let volume_str = listener.get_volume_string()
-                             .expect("Error getting volume path.");
+    let volume_str = listener
+        .get_volume_string()
+        .expect("Error getting volume path.");
 
-
-    let usn_config = UsnListenerConfig::new()
-        .enumerate_paths(false);
+    let usn_config = UsnListenerConfig::new().enumerate_paths(false);
     let usn_listener = usn_config.get_listener(&volume_str);
-    let usn_rx = usn_listener.listen_to_volume()
-                             .expect("Unable to listen to USN");
+    let usn_rx = usn_listener
+        .listen_to_volume()
+        .expect("Unable to listen to USN");
 
     loop {
         let usn_entry_value = match usn_rx.recv() {
@@ -86,12 +85,11 @@ fn run(mut listener: EntryListener, mut named_pipe_opt: Option<File>) {
             continue;
         }
 
-        let current_value = listener.get_current_value().expect("Unable to get current mft entry value");
+        let current_value = listener
+            .get_current_value()
+            .expect("Unable to get current mft entry value");
 
-        let difference_value = get_difference_value(
-            &previous_value,
-            &current_value
-        );
+        let difference_value = get_difference_value(&previous_value, &current_value);
 
         match difference_value.as_object() {
             None => continue,
@@ -100,27 +98,24 @@ fn run(mut listener: EntryListener, mut named_pipe_opt: Option<File>) {
                     continue;
                 }
 
-                let value_str = serde_json::to_string_pretty(
-                    &difference_value
-                ).expect("Unable to format Value");
-                
+                let value_str = serde_json::to_string_pretty(&difference_value)
+                    .expect("Unable to format Value");
+
                 match named_pipe_opt {
                     Some(ref mut fh) => {
-                        fh.write(
-                            &format!("{}", value_str).into_bytes()
-                        ).expect("Unable to write value");
-                    },
+                        fh.write(&format!("{}", value_str).into_bytes())
+                            .expect("Unable to write value");
+                    }
                     None => {
                         println!("{}", value_str);
                     }
                 }
-        
+
                 previous_value = current_value.to_owned();
             }
         }
     }
 }
-
 
 fn main() {
     let app = make_app();
@@ -128,9 +123,7 @@ fn main() {
 
     // Set debug
     match options.value_of("debug") {
-        Some(d) => set_debug_level(d).expect(
-            "Error setting debug level"
-        ),
+        Some(d) => set_debug_level(d).expect("Error setting debug level"),
         None => {}
     }
 
@@ -143,40 +136,34 @@ fn main() {
     };
 
     let named_pipe = match options.value_of("named_pipe") {
-        Some(p) => {
-            Some(
-                create_pipe(p).expect("blahh")
-            )
-        },
-        None => None
+        Some(p) => Some(create_pipe(p).expect("blahh")),
+        None => None,
     };
 
     let pretty_flag = options.is_present("pretty");
 
     let handler = WindowsHandler::new();
-    let reciever = handler.listen_mft(
-        file_path
-    ).expect("Error creating listener");
+    let reciever = handler
+        .listen_mft(file_path)
+        .expect("Error creating listener");
 
     loop {
         for value in reciever.recv() {
-            let value_str = match pretty_flag{
-                false => match serde_json::to_string(&value){
+            let value_str = match pretty_flag {
+                false => match serde_json::to_string(&value) {
                     Ok(s) => s,
                     Err(e) => {
                         eprintln!("Error creating string from value: {:?}", e);
                         continue;
                     }
                 },
-                true => {
-                    match serde_json::to_string_pretty(&value){
-                        Ok(s) => s,
-                        Err(e) => {
-                            eprintln!("Error creating pretty string from value: {:?}", e);
-                            continue;
-                        }
+                true => match serde_json::to_string_pretty(&value) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("Error creating pretty string from value: {:?}", e);
+                        continue;
                     }
-                }
+                },
             };
 
             println!("{}", value_str);

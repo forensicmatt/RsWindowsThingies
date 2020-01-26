@@ -1,45 +1,38 @@
-use serde_json::Value;
-use std::sync::mpsc::Receiver;
-use winapi::um::winevt::{
-    EvtSubscribeToFutureEvents,
-    EvtSubscribeStartAtOldestRecord
-};
-use crate::winevt::EvtHandle;
-use crate::mft::EntryListener;
 use crate::errors::WinThingError;
-use crate::winevt::callback::OutputFormat;
+use crate::mft::EntryListener;
 use crate::usn::listener::UsnListenerConfig;
 use crate::winevt::callback::CallbackContext;
+use crate::winevt::callback::OutputFormat;
 use crate::winevt::subscription::ChannelSubscription;
-
+use crate::winevt::EvtHandle;
+use serde_json::Value;
+use std::sync::mpsc::Receiver;
+use winapi::um::winevt::{EvtSubscribeStartAtOldestRecord, EvtSubscribeToFutureEvents};
 
 pub struct WindowsHandler {}
 
 impl WindowsHandler {
     pub fn new() -> Self {
-        Self{}
+        Self {}
     }
-    
+
     /// Listen to a file's MFT changes. Get the reciever.
-    pub fn listen_mft(
-        &self, 
-        file_path: &str
-    ) -> Result<Receiver<Value>, WinThingError> {
+    pub fn listen_mft(&self, file_path: &str) -> Result<Receiver<Value>, WinThingError> {
         let listener = EntryListener::new(file_path)?;
         listener.listen_to_file()
     }
 
     /// Listen to a volume's USN changes. Get the reciever.
     pub fn listen_usn(
-        &self, 
-        volume: &str, 
-        config: Option<UsnListenerConfig>
+        &self,
+        volume: &str,
+        config: Option<UsnListenerConfig>,
     ) -> Result<Receiver<Value>, WinThingError> {
         let config = match config {
             Some(c) => c,
-            None => UsnListenerConfig::default()
+            None => UsnListenerConfig::default(),
         };
-        
+
         let listener = config.get_listener(volume);
 
         listener.listen_to_volume()
@@ -51,7 +44,7 @@ impl WindowsHandler {
         session: Option<EvtHandle>,
         historical_flag: bool,
         format_enum: OutputFormat,
-        channel_list: Vec<String>
+        channel_list: Vec<String>,
     ) -> Result<(Receiver<Value>, Vec<ChannelSubscription>), WinThingError> {
         // Create context
         let (rx, mut context) = CallbackContext::with_reciever();
@@ -62,7 +55,7 @@ impl WindowsHandler {
         // Historical flag
         let flags = match historical_flag {
             true => Some(EvtSubscribeStartAtOldestRecord),
-            false => Some(EvtSubscribeToFutureEvents)
+            false => Some(EvtSubscribeToFutureEvents),
         };
 
         for channel in channel_list {
@@ -73,22 +66,18 @@ impl WindowsHandler {
                 channel.to_string(),
                 None,
                 flags,
-                &mut context
-            ){
+                &mut context,
+            ) {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("Error creating subscription for {}: {:?}", channel, e);
                     continue;
                 }
             };
-    
-            subscriptions.push(
-                subscription
-            );
+
+            subscriptions.push(subscription);
         }
-    
-        Ok((
-            rx, subscriptions
-        ))
+
+        Ok((rx, subscriptions))
     }
 }
