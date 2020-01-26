@@ -13,12 +13,20 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .long("source")
         .value_name("PATH")
         .help("The source volume to listen to. (example: '\\\\.\\C:')")
+        .required(true)
         .takes_value(true);
 
     let historical_arg = Arg::with_name("historical")
         .short("p")
         .long("historical")
         .help("List historical records along with listening to new changes.");
+
+    let mask_arg = Arg::with_name("mask")
+        .short("m")
+        .long("mask")
+        .value_name("MASK")
+        .help("The USN mask for filtering.")
+        .takes_value(true);
 
     let verbose = Arg::with_name("debug")
         .short("-d")
@@ -34,6 +42,7 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .about("USN listener written in Rust. Output is JSONL.")
         .arg(source_arg)
         .arg(historical_arg)
+        .arg(mask_arg)
         .arg(verbose)
 }
 
@@ -60,10 +69,35 @@ fn main() {
         }
     };
 
+    let mask_opt = match options.value_of("mask") {
+        Some(m) => {
+            if m.starts_with("0x") {
+                let without_prefix = m.trim_start_matches("0x");
+                Some(
+                    u32::from_str_radix(
+                        without_prefix, 16
+                    ).expect("Error converting mask to u32")
+                )
+            }
+            else {
+                Some(
+                    m.parse::<u32>().expect("Error converting mask to u32")
+                )
+            }
+        },
+        None => None
+    };
+
     let handler = WindowsHandler::new();
     let mut config = UsnListenerConfig::new();
     if options.is_present("historical") {
         config = config.historic(true);
+    }
+    match mask_opt {
+        Some(m) => {
+            config = config.mask(m);
+        },
+        None => {}
     }
 
     let reciever = handler.listen_usn(
