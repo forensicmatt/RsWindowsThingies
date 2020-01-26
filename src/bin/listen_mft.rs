@@ -135,7 +135,7 @@ fn main() {
         }
     };
 
-    let named_pipe = match options.value_of("named_pipe") {
+    let _named_pipe = match options.value_of("named_pipe") {
         Some(p) => Some(create_pipe(p).expect("blahh")),
         None => None,
     };

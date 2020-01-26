@@ -1,16 +1,16 @@
 use crate::errors::WinThingError;
-use crate::winevt::callback::CallbackContext;
+
 use crate::winevt::variant::EvtVariant;
 use crate::winevt::EvtHandle;
 use std::ffi::OsString;
 use std::os::windows::prelude::*;
 use std::ptr::null_mut;
-use winapi::ctypes::c_void;
+
 use winapi::shared::minwindef::DWORD;
 use winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER;
 use winapi::shared::winerror::ERROR_NO_MORE_ITEMS;
 use winapi::um::errhandlingapi::GetLastError;
-use winapi::um::winevt::EvtClose;
+
 use winapi::um::winevt::*;
 
 /// BOOL EvtRender(

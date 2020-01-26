@@ -4,10 +4,10 @@ use crate::usn::listener::UsnListenerConfig;
 use crate::winevt::callback::CallbackContext;
 use crate::winevt::callback::OutputFormat;
 use crate::winevt::{EvtHandle, EvtSubscriptionHandle};
-use crossbeam::channel::{self, Receiver, Sender, Select};
+use crossbeam::channel::{self, Receiver, Select};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::Arc;
+
 use winapi::um::winevt::{EvtSubscribeStartAtOldestRecord, EvtSubscribeToFutureEvents};
 
 pub struct WindowsHandler {}
@@ -44,11 +44,11 @@ impl WindowsHandler {
         &self,
         session: Option<EvtHandle>,
         historical_flag: bool,
-        format_enum: OutputFormat,
+        _format_enum: OutputFormat,
         channel_list: Vec<String>,
     ) -> ! {
         // Historical flag
-        let flags = match historical_flag {
+        let _flags = match historical_flag {
             true => Some(EvtSubscribeStartAtOldestRecord),
             false => Some(EvtSubscribeToFutureEvents),
         };
@@ -63,7 +63,7 @@ impl WindowsHandler {
             receivers.push(r);
         }
 
-        for (chan, mut ctx) in senders.iter_mut() {
+        for (chan, ctx) in senders.iter_mut() {
             let handle = EvtSubscriptionHandle::register(&session, chan, None, None, ctx)
                 .expect("Create channel");
 

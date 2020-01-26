@@ -1,7 +1,7 @@
 use crate::utils::xmltojson::xml_string_to_json;
-use crossbeam::channel::{self, Receiver, Sender};
+use crossbeam::channel::{Sender};
 use serde_json::Value;
-use std::sync::Arc;
+
 
 #[derive(Debug)]
 pub enum OutputFormat {
