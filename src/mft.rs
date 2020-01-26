@@ -4,12 +4,12 @@ use crate::usn::listener::UsnListenerConfig;
 use crate::utils::json::get_difference_value;
 use crate::volume::liventfs::WindowsLiveNtfs;
 use byteorder::{LittleEndian, ReadBytesExt};
+use crossbeam::channel::{self, Receiver, Sender};
 use mft::attribute::{MftAttribute, MftAttributeType};
 use mft::MftEntry;
 use serde_json::to_value;
 use serde_json::Value;
 use std::io::Read;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
 fn get_attr_name(attribute: &MftAttributeType) -> String {
@@ -165,7 +165,7 @@ impl EntryListener {
     }
 
     pub fn listen_to_file(self) -> Result<Receiver<Value>, WinThingError> {
-        let (tx, rx): (Sender<Value>, Receiver<Value>) = channel();
+        let (tx, rx): (Sender<Value>, Receiver<Value>) = channel::unbounded();
 
         let _thread = thread::spawn(move || match listen_mft(self, tx) {
             Ok(_) => println!("thread terminated"),

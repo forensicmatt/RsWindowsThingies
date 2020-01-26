@@ -4,8 +4,13 @@ use std::ptr::null_mut;
 use winapi::ctypes::c_void;
 use winapi::um::winevt::*;
 
-pub struct RemoteSession(pub EvtHandle);
+pub struct RemoteSession(EvtHandle);
+
 impl RemoteSession {
+    pub fn into_handle(self) -> EvtHandle {
+        self.0
+    }
+
     pub fn from_prompt_password(
         hostname: &str,
         username: Option<&str>,

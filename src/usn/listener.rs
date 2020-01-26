@@ -4,13 +4,13 @@ use crate::errors::WinThingError;
 use crate::usn::structs::ReadUsnJournalData;
 use crate::volume::liventfs::WindowsLiveNtfs;
 use byteorder::{ByteOrder, LittleEndian};
+use crossbeam::channel::{self, Receiver, Sender};
 use rusty_usn::flags;
 use rusty_usn::record::EntryMeta;
 use rusty_usn::usn::IterRecordsByIndex;
 use serde_json::Value;
 use std::fs::File;
 use std::os::windows::io::AsRawHandle;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
@@ -176,7 +176,7 @@ impl UsnVolumeListener {
     }
 
     pub fn listen_to_volume(self) -> Result<Receiver<Value>, WinThingError> {
-        let (tx, rx): (Sender<Value>, Receiver<Value>) = channel();
+        let (tx, rx): (Sender<Value>, Receiver<Value>) = channel::unbounded();
 
         let _thread = thread::spawn(move || match listen_usn(self, tx) {
             Ok(_) => println!("thread terminated"),
