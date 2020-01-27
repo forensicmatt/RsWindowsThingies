@@ -49,74 +49,6 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(debug)
 }
 
-fn run(mut listener: EntryListener, mut named_pipe_opt: Option<File>) {
-    let mut previous_value = listener
-        .get_current_value()
-        .expect("Unable to get current mft entry value");
-    match named_pipe_opt {
-        Some(ref mut fh) => {
-            fh.write(&previous_value.to_string().into_bytes())
-                .expect("Error writing value");
-        }
-        None => {
-            println!("{}", previous_value.to_string());
-        }
-    }
-
-    let volume_str = listener
-        .get_volume_string()
-        .expect("Error getting volume path.");
-
-    let usn_config = UsnListenerConfig::new().enumerate_paths(false);
-    let usn_listener = usn_config.get_listener(&volume_str);
-    let usn_rx = usn_listener
-        .listen_to_volume()
-        .expect("Unable to listen to USN");
-
-    loop {
-        let usn_entry_value = match usn_rx.recv() {
-            Ok(e) => e,
-            Err(_) => panic!("Disconnected!"),
-        };
-
-        let entry = &usn_entry_value["file_reference"]["entry"];
-
-        if entry != listener.entry_to_monitor {
-            continue;
-        }
-
-        let current_value = listener
-            .get_current_value()
-            .expect("Unable to get current mft entry value");
-
-        let difference_value = get_difference_value(&previous_value, &current_value);
-
-        match difference_value.as_object() {
-            None => continue,
-            Some(o) => {
-                if o.is_empty() {
-                    continue;
-                }
-
-                let value_str = serde_json::to_string_pretty(&difference_value)
-                    .expect("Unable to format Value");
-
-                match named_pipe_opt {
-                    Some(ref mut fh) => {
-                        fh.write(&format!("{}", value_str).into_bytes())
-                            .expect("Unable to write value");
-                    }
-                    None => {
-                        println!("{}", value_str);
-                    }
-                }
-
-                previous_value = current_value.to_owned();
-            }
-        }
-    }
-}
-
 fn main() {
     let app = make_app();
     let options = app.get_matches();
@@ -135,8 +67,8 @@ fn main() {
         }
     };
 
-    let _named_pipe = match options.value_of("named_pipe") {
-        Some(p) => Some(create_pipe(p).expect("blahh")),
+    let mut opt_named_pipe = match options.value_of("named_pipe") {
+        Some(p) => Some(create_pipe(p).expect("Error creating pipe")),
         None => None,
     };
 
@@ -166,7 +98,15 @@ fn main() {
                 },
             };
 
-            println!("{}", value_str);
+            match opt_named_pipe {
+                Some(ref mut fh) => {
+                    fh.write(&format!("{}", value_str).into_bytes())
+                        .expect("Unable to write value");
+                }
+                None => {
+                    println!("{}", value_str);
+                }
+            }
         }
     }
 }

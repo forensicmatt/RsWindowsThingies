@@ -3,6 +3,7 @@ extern crate clap;
 extern crate log;
 extern crate serde_json;
 use clap::{App, Arg};
+use rswinthings::file::pipe::create_pipe;
 use rswinthings::handler::WindowsHandler;
 use rswinthings::utils::cli::{add_session_options_to_app, get_session_from_matches};
 use rswinthings::utils::debug::set_debug_level;
@@ -10,6 +11,7 @@ use rswinthings::winevt::callback::OutputFormat;
 use rswinthings::winevt::channels::get_channel_name_list;
 use rswinthings::winevt::channels::ChannelConfig;
 use rswinthings::winevt::EvtHandle;
+use std::io::Write;
 use std::process::exit;
 
 static VERSION: &'static str = "0.3.0";
@@ -152,9 +154,30 @@ fn main() {
         .listen_events(session, historical_flag, format_enum, channel_list)
         .expect("Error creating listener");
 
+    let mut opt_named_pipe = match options.value_of("named_pipe") {
+        Some(p) => Some(create_pipe(p).expect("Error creating pipe")),
+        None => None,
+    };
+
     loop {
-        for event in reciever.recv() {
-            println!("{}", event.to_string());
+        for value in reciever.recv() {
+            let value_str = match serde_json::to_string(&value) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("Error creating string from value: {:?}", e);
+                    continue;
+                }
+            };
+
+            match opt_named_pipe {
+                Some(ref mut fh) => {
+                    fh.write(&format!("{}", value_str).into_bytes())
+                        .expect("Unable to write value");
+                }
+                None => {
+                    println!("{}", value_str);
+                }
+            }
         }
     }
 }

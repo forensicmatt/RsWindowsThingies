@@ -67,6 +67,11 @@ steps:
     displayName: "Create listen_usn variable (Windows_NT)"
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
+  - bash: |
+      echo "##vso[task.setvariable variable=build.openpipe]openpipe.py"
+    displayName: "Create openpipe script name variable (Windows_NT)"
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
   - task: CopyFiles@2
     displayName: Copy listen_events
     inputs:
@@ -109,6 +114,15 @@ steps:
       sourceFolder: '$(Build.SourcesDirectory)/target/release'
       contents: |
         $(build.binary_name5)
+      targetFolder: '$(Build.BinariesDirectory)'
+      condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: CopyFiles@2
+    displayName: Copy openpipe.py
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)/scripts'
+      contents: |
+        $(build.openpipe)
       targetFolder: '$(Build.BinariesDirectory)'
       condition: eq( variables['Agent.OS'], 'Windows_NT' )
 

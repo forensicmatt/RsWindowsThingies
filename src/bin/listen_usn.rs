@@ -1,7 +1,9 @@
 use clap::{App, Arg};
+use rswinthings::file::pipe::create_pipe;
 use rswinthings::handler::WindowsHandler;
 use rswinthings::usn::listener::UsnListenerConfig;
 use rswinthings::utils::debug::set_debug_level;
+use std::io::Write;
 use std::process::exit;
 
 static VERSION: &'static str = "0.2.0";
@@ -27,6 +29,12 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .help("The USN mask for filtering.")
         .takes_value(true);
 
+    let namedpipe_arg = Arg::with_name("named_pipe")
+        .long("named_pipe")
+        .value_name("NAMEDPIPE")
+        .takes_value(true)
+        .help("The named pipe to write out to.");
+
     let verbose = Arg::with_name("debug")
         .short("-d")
         .long("debug")
@@ -42,6 +50,7 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(source_arg)
         .arg(historical_arg)
         .arg(mask_arg)
+        .arg(namedpipe_arg)
         .arg(verbose)
 }
 
@@ -87,13 +96,34 @@ fn main() {
         None => {}
     }
 
+    let mut opt_named_pipe = match options.value_of("named_pipe") {
+        Some(p) => Some(create_pipe(p).expect("Error creating pipe")),
+        None => None,
+    };
+
     let reciever = handler
         .listen_usn(source_volume, Some(config))
         .expect("Error creating listener");
 
     loop {
-        for event in reciever.recv() {
-            println!("{}", event.to_string());
+        for value in reciever.recv() {
+            let value_str = match serde_json::to_string(&value) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("Error creating string from value: {:?}", e);
+                    continue;
+                }
+            };
+
+            match opt_named_pipe {
+                Some(ref mut fh) => {
+                    fh.write(&format!("{}", value_str).into_bytes())
+                        .expect("Unable to write value");
+                }
+                None => {
+                    println!("{}", value_str);
+                }
+            }
         }
     }
 }
