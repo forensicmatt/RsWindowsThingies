@@ -1,27 +1,18 @@
-extern crate log;
-extern crate clap;
 extern crate chrono;
+extern crate clap;
+extern crate log;
 extern crate serde_json;
 use clap::{App, Arg};
-use std::process::exit;
-use std::thread::sleep;
-use std::time::Duration;
+use rswinthings::file::pipe::create_pipe;
+use rswinthings::handler::WindowsHandler;
+use rswinthings::utils::cli::{add_session_options_to_app, get_session_from_matches};
 use rswinthings::utils::debug::set_debug_level;
+use rswinthings::winevt::callback::OutputFormat;
 use rswinthings::winevt::channels::get_channel_name_list;
 use rswinthings::winevt::channels::ChannelConfig;
-use rswinthings::winevt::callback::OutputFormat;
-use rswinthings::winevt::callback::CallbackContext;
-use rswinthings::winevt::subscription::ChannelSubscription;
-use winapi::um::winevt::{
-    EvtSubscribeToFutureEvents,
-    EvtSubscribeStartAtOldestRecord
-};
-use rswinthings::utils::cli::{
-    add_session_options_to_app,
-    get_session_from_matches
-};
 use rswinthings::winevt::EvtHandle;
-
+use std::io::Write;
+use std::process::exit;
 
 static VERSION: &'static str = "0.3.0";
 static DESCRIPTION: &'static str = r"
@@ -32,7 +23,6 @@ query and uses the Windows API to monitor for events on the applicable
 channels. Use the print_channels tool to list available channels and
 their configurations.
 ";
-
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
     let channel = Arg::with_name("channel")
@@ -56,6 +46,12 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .long("historical")
         .help("List historical records along with listening to new changes.");
 
+    let named_pipe = Arg::with_name("named_pipe")
+        .long("named_pipe")
+        .value_name("NAMEDPIPE")
+        .takes_value(true)
+        .help("The named pipe to write out to.");
+
     let debug = Arg::with_name("debug")
         .short("-d")
         .long("debug")
@@ -71,22 +67,19 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(channel)
         .arg(format)
         .arg(historical)
+        .arg(named_pipe)
         .arg(debug);
 
     // Add session arguments to app
     add_session_options_to_app(app)
 }
 
+fn get_list_from_system(session: &Option<EvtHandle>) -> Vec<String> {
+    let mut channels = Vec::new();
 
-fn get_query_list_from_system(
-    session: &Option<EvtHandle>,
-    context: &CallbackContext, 
-    flags: Option<u32>
-) -> Vec<ChannelSubscription> {
-    let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
     // Get a list off all the channels
-    let channel_list = get_channel_name_list(&session)
-        .expect("Error getting channel list");
+    let channel_list = get_channel_name_list(&session).expect("Error getting channel list");
+
     // Iterate each channel in our available channels
     for channel in channel_list {
         // Get the config for this channel
@@ -109,126 +102,82 @@ fn get_query_list_from_system(
             continue;
         }
 
-        eprintln!("listening to channel: {}", channel);
-
-        // Create subscription
-        let subscription = match ChannelSubscription::new(
-            session,
-            channel.to_string(),
-            None,
-            flags,
-            &context
-        ){
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Error creating subscription for {}: {:?}", channel, e);
-                continue;
-            }
-        };
-
-        subscriptions.push(subscription);
+        eprintln!("Adding {} to listener", channel);
+        channels.push(channel);
     }
 
-    subscriptions
+    channels
 }
-
-
-fn get_query_list_from_str_list<'a>(
-    session: &Option<EvtHandle>,
-    context: &CallbackContext, 
-    flags: Option<u32>,
-    channel_list: Vec<&'a str>
-) -> Vec<ChannelSubscription> {
-    let mut subscriptions: Vec<ChannelSubscription> = Vec::new();
-
-    for channel in channel_list {
-        // Create subscription
-        let subscription = match ChannelSubscription::new(
-            session,
-            channel.to_string(),
-            None,
-            flags,
-            &context
-        ){
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Error creating subscription for {}: {:?}", channel, e);
-                continue;
-            }
-        };
-
-        subscriptions.push(
-            subscription
-        );
-    }
-
-    subscriptions
-}
-
 
 fn main() {
     let app = make_app();
     let options = app.get_matches();
 
     match options.value_of("debug") {
-        Some(d) => set_debug_level(d).expect(
-            "Error setting debug level"
-        ),
-        None => set_debug_level("Error").expect(
-            "Error setting debug level"
-        )
+        Some(d) => set_debug_level(d).expect("Error setting debug level"),
+        None => set_debug_level("Error").expect("Error setting debug level"),
     }
 
     // Get Session
-    let session: Option<EvtHandle> = match get_session_from_matches(
-        &options
-    ).expect("Error getting session from options") {
-        Some(s) => Some(s.0),
-        None => None
-    };
+    let session: Option<EvtHandle> = get_session_from_matches(&options)
+        .expect("Error getting session from options")
+        .map(|sess| sess.into_handle());
 
     let format_enum = match options.value_of("format") {
-        Some(f) => {
-            match f {
-                "xml" => OutputFormat::XmlFormat,
-                "jsonl" => OutputFormat::JsonlFormat,
-                other => {
-                    eprintln!("Unkown format: {}", other);
-                    exit(-1);
-                }
+        Some(f) => match f {
+            "xml" => OutputFormat::XmlFormat,
+            "jsonl" => OutputFormat::JsonFormat,
+            other => {
+                eprintln!("Unkown format: {}", other);
+                exit(-1);
             }
         },
-        None => OutputFormat::JsonlFormat
+        None => OutputFormat::JsonFormat,
     };
 
     // Historical flag
-    let flags = match options.is_present("historical") {
-        true => Some(EvtSubscribeStartAtOldestRecord),
-        false => Some(EvtSubscribeToFutureEvents)
+    let historical_flag = options.is_present("historical");
+
+    let channel_list = match options.values_of("channel") {
+        Some(ch_str_list) => {
+            let mut list = Vec::new();
+            for ch_str in ch_str_list {
+                list.push(ch_str.to_string())
+            }
+            list
+        }
+        None => get_list_from_system(&session),
     };
 
-    // Create context
-    let context = CallbackContext::new()
-        .with_format(format_enum);
+    let handler = WindowsHandler::new();
+    let reciever = handler
+        .listen_events(session, historical_flag, format_enum, channel_list)
+        .expect("Error creating listener");
 
-    let _subscritions = match options.values_of("channel") {
-        Some(v_list) => {
-            get_query_list_from_str_list(
-                &session,
-                &context,
-                flags,
-                v_list.collect()
-            )
-        },
-        None => get_query_list_from_system(
-            &session,
-            &context,
-            flags
-        )
+    let mut opt_named_pipe = match options.value_of("named_pipe") {
+        Some(p) => Some(create_pipe(p).expect("Error creating pipe")),
+        None => None,
     };
 
-    eprintln!("Listening to events...");
     loop {
-        sleep(Duration::from_millis(200));
+        for value in reciever.recv() {
+            let value_str = match serde_json::to_string(&value) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("Error creating string from value: {:?}", e);
+                    continue;
+                }
+            };
+
+            match opt_named_pipe {
+                Some(ref mut fh) => {
+                    fh.write(&format!("{}", value_str).into_bytes())
+                        .expect("Unable to write value");
+                }
+                None => {
+                    println!("{}", value_str);
+                }
+            }
+        }
     }
 }

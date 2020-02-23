@@ -1,49 +1,49 @@
 use crate::utils::xmltojson::xml_string_to_json;
+use crossbeam::channel::Sender;
+use serde_json::Value;
 
-
+#[derive(Debug)]
 pub enum OutputFormat {
     XmlFormat,
-    JsonlFormat
+    JsonFormat,
 }
 
+#[derive(Debug)]
 pub struct CallbackContext {
-    format: OutputFormat
+    format: OutputFormat,
+    tx: Sender<Value>,
 }
 
 impl CallbackContext {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(tx: Sender<Value>) -> Self {
+        Self {
+            format: OutputFormat::JsonFormat,
+            tx,
+        }
     }
 
-    pub fn with_format(mut self, format: OutputFormat) -> Self {
+    pub fn format(mut self, format: OutputFormat) -> Self {
         self.format = format;
         self
     }
 
     pub fn handle_record(&self, xml_string: String) {
-        match self.format {
-            OutputFormat::JsonlFormat => {
-                let value = match xml_string_to_json(xml_string) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        eprintln!("Error converting XML string to Value: {:?}", e);
-                        return;
-                    }
-                };
-
-                println!("{}", &value.to_string());
+        let value = match self.format {
+            OutputFormat::JsonFormat => match xml_string_to_json(xml_string) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("Error converting XML string to Value: {:?}", e);
+                    return;
+                }
             },
-            OutputFormat::XmlFormat => {
-                println!("{}", xml_string);
-            }
-        }
-    }
-}
+            OutputFormat::XmlFormat => Value::String(xml_string),
+        };
 
-impl Default for CallbackContext {
-    fn default() -> Self {
-        Self {
-            format: OutputFormat::JsonlFormat
+        match self.tx.send(value) {
+            Ok(_) => {}
+            Err(error) => {
+                eprintln!("error sending value: {:?}", error);
+            }
         }
     }
 }
