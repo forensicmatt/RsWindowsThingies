@@ -539,10 +539,13 @@ impl MetadataKeyword {
         array_handle: &EvtHandle,
         i: u32,
     ) -> Result<Self, WinThingError> {
-        let name =
-            evt_get_object_array_property(&array_handle, i, EvtPublisherMetadataKeywordName)?
-                .get_variant_value()
-                .expect("Error EvtPublisherMetadataKeywordName");
+        let name = evt_get_object_array_property(
+            &array_handle, 
+            i, 
+            EvtPublisherMetadataKeywordName
+        )?
+            .get_variant_value()
+            .expect("Error EvtPublisherMetadataKeywordName");
 
         let value =
             evt_get_object_array_property(&array_handle, i, EvtPublisherMetadataKeywordValue)?

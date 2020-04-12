@@ -1,14 +1,22 @@
 use crate::errors::WinThingError;
-use crate::winetl::evntrace::{open_trace, process_trace};
+use crate::winetl::evntrace::{
+    open_trace, 
+    process_trace
+};
 use crate::winetl::TraceHandle;
 use std::mem;
 use winapi::shared::evntrace::EVENT_TRACE_LOGFILEW;
 use winapi::um::evntcons::{
-    PEVENT_RECORD, PROCESS_TRACE_MODE_EVENT_RECORD, PROCESS_TRACE_MODE_REAL_TIME,
+    PEVENT_RECORD, 
+    PROCESS_TRACE_MODE_EVENT_RECORD, 
+    PROCESS_TRACE_MODE_REAL_TIME,
 };
 
-unsafe extern "system" fn process_event(_p_event: PEVENT_RECORD) {
+unsafe extern "system" fn process_event(
+    _p_event: PEVENT_RECORD
+) {
     println!("process_event");
+
 }
 
 pub struct TraceConsumer {
@@ -20,7 +28,9 @@ impl TraceConsumer {
         let mut logger_name_u16: Vec<u16> = logger_name.encode_utf16().collect();
         logger_name_u16.resize(logger_name.len() + 1, 0);
 
-        let mut event_trace_logfile: EVENT_TRACE_LOGFILEW = unsafe { mem::zeroed() };
+        let mut event_trace_logfile: EVENT_TRACE_LOGFILEW = unsafe {
+            mem::zeroed()
+        };
 
         // Set logger name
         event_trace_logfile.LoggerName = logger_name_u16.as_mut_ptr();
