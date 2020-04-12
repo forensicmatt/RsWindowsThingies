@@ -2,11 +2,7 @@ extern crate serde_json;
 use clap::{App, Arg};
 use rswinthings::file::pipe::create_pipe;
 use rswinthings::handler::WindowsHandler;
-use rswinthings::mft::EntryListener;
-use rswinthings::usn::listener::UsnListenerConfig;
 use rswinthings::utils::debug::set_debug_level;
-use rswinthings::utils::json::get_difference_value;
-use std::fs::File;
 use std::io::Write;
 use std::process::exit;
 
