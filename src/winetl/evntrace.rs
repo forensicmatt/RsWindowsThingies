@@ -10,7 +10,10 @@ use winapi::shared::winerror::ERROR_SUCCESS;
 /// ETW_APP_DECLSPEC_DEPRECATED TRACEHANDLE WMIAPI OpenTraceW(
 ///   PEVENT_TRACE_LOGFILEW Logfile
 /// );
-pub fn open_trace(mut logfile: EVENT_TRACE_LOGFILEW) -> Result<TraceHandle, WinThingError> {
+pub fn open_trace(
+    mut logfile: EVENT_TRACE_LOGFILEW
+) -> Result<TraceHandle, WinThingError> {
+    /// Get the trace handle
     let handle = unsafe {
         OpenTraceW(
             &mut logfile
@@ -28,13 +31,16 @@ pub fn open_trace(mut logfile: EVENT_TRACE_LOGFILEW) -> Result<TraceHandle, WinT
     )
 }
 
+
 /// ULONG ProcessTrace(
 ///   _In_ PTRACEHANDLE HandleArray,
 ///   _In_ ULONG        HandleCount,
 ///   _In_ LPFILETIME   StartTime,
 ///   _In_ LPFILETIME   EndTime
 /// );
-pub fn process_trace(handle: &mut TraceHandle) -> Result<(), WinThingError> {
+pub fn process_trace(
+    handle: &mut TraceHandle
+) -> Result<(), WinThingError> {
     let result = unsafe {
         ProcessTrace(
             &mut handle.0,

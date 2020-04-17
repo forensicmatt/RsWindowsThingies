@@ -14,6 +14,7 @@ use winapi::um::winbase::{
 
 #[derive(Debug)]
 pub enum ErrorType {
+    GeneralError,
     CliError,
     WinApiError,
     Utf16Error,
@@ -37,6 +38,14 @@ pub struct WinThingError {
 }
 
 impl WinThingError {
+    /// GeneralError error
+    pub fn general_error(message: String) -> Self {
+        Self {
+            message: message,
+            kind: ErrorType::GeneralError,
+        }
+    }
+
     pub fn cli_error(message: String) -> Self {
         Self {
             message: message,

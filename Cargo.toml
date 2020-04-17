@@ -56,3 +56,7 @@ branch = "master"
 
 [dependencies.mft]
 version = "0.5"
+
+[[bin]]
+name = "etl_consumer"
+path = "src/bin/etl_tools/etl_consumer.rs"
