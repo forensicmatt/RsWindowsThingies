@@ -28,7 +28,9 @@ fn listen_usn(listener: UsnVolumeListener, tx: Sender<Value>) -> Result<(), WinT
 
     let file_handle = File::open(listener.source.clone())?;
 
-    let usn_journal_data = query_usn_journal(live_volume.get_handle().as_raw_handle())?;
+    let usn_journal_data = query_usn_journal(
+        live_volume.get_handle().as_raw_handle() as _
+    )?;
 
     let mut next_start_usn: u64 = usn_journal_data.get_next_usn();
     let catch_up_usn = next_start_usn;
@@ -42,7 +44,10 @@ fn listen_usn(listener: UsnVolumeListener, tx: Sender<Value>) -> Result<(), WinT
             .with_start_usn(next_start_usn)
             .with_reason_mask(listener.config.mask);
 
-        let buffer = match read_usn_journal(file_handle.as_raw_handle(), read_data) {
+        let buffer = match read_usn_journal(
+            file_handle.as_raw_handle() as _, 
+            read_data
+        ) {
             Ok(b) => b,
             Err(e) => {
                 eprintln!("{:#?}", e);

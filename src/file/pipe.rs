@@ -29,7 +29,7 @@ pub fn create_pipe(pipe_name: &str) -> Result<File, WinThingError> {
         return Err(WinThingError::from_windows_last_error());
     }
 
-    let file = unsafe { File::from_raw_handle(handle) };
+    let file = unsafe { File::from_raw_handle(handle as _) };
 
     Ok(file)
 }

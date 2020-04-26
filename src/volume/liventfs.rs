@@ -22,7 +22,9 @@ impl WindowsLiveNtfs {
     pub fn from_volume_path(volume_path: &str) -> Result<Self, WinThingError> {
         let file_handle = File::open(&volume_path)?;
 
-        let ntfs_volume_data = get_ntfs_volume_data(file_handle.as_raw_handle())?;
+        let ntfs_volume_data = get_ntfs_volume_data(
+            file_handle.as_raw_handle() as _
+        )?;
 
         Ok(WindowsLiveNtfs {
             volume_path: volume_path.to_string(),
@@ -41,7 +43,7 @@ impl WindowsLiveNtfs {
     ///
     pub fn get_mft_entry(&mut self, entry: i64) -> Result<MftEntry, WinThingError> {
         let raw_buffer = query_file_record(
-            self.volume_handle.as_raw_handle(),
+            self.volume_handle.as_raw_handle() as _,
             entry,
             self.ntfs_volume_data.BytesPerFileRecordSegment,
         )?;

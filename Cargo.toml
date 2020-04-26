@@ -33,21 +33,26 @@ version = "1.0"
 features = ["derive"]
 
 [dependencies.winapi]
-version = "0.3.8"
+git = "https://github.com/forensicmatt/winapi-rs"
+branch = "etw"
 features = [
+"debug",
 "namedpipeapi",
 "winioctl",
 "ioapiset",
 "winevt",
 "winnt",
+"winbase",
 "minwindef",
 "errhandlingapi",
 "winerror",
+"fileapi",
 "guiddef",
 "evntrace",
 "wmistr",
-"impl-default",
-"impl-debug"
+"handleapi",
+"eventtrace",
+"impl-default"
 ]
 
 [dependencies.rusty_usn]

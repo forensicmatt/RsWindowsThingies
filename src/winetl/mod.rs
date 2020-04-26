@@ -2,6 +2,7 @@ pub mod consumer;
 pub mod evntrace;
 pub mod publisher;
 pub mod trace;
+pub mod record;
 use crate::errors::WinThingError;
 use winapi::shared::evntrace::CloseTrace;
 use winapi::shared::evntrace::TRACEHANDLE;

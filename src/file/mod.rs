@@ -15,7 +15,7 @@ impl FileHandle {
     }
 
     pub fn get_file(&self) -> File {
-        unsafe { File::from_raw_handle(self.0) }
+        unsafe { File::from_raw_handle(self.0 as _) }
     }
 }
 

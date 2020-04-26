@@ -1,37 +1,69 @@
-use crate::errors::WinThingError;
-use crate::winetl::evntrace::{
-    open_trace, 
-    process_trace
-};
-use crate::winetl::TraceHandle;
 use std::mem;
+use std::ffi::OsString;
+use std::os::windows::ffi::OsStrExt;
 use winapi::shared::evntrace::EVENT_TRACE_LOGFILEW;
-use winapi::um::evntcons::{
-    PEVENT_RECORD, 
-    PROCESS_TRACE_MODE_EVENT_RECORD, 
-    PROCESS_TRACE_MODE_REAL_TIME,
+
+use winapi::um::{
+    evntcons::{
+        PEVENT_RECORD,
+        PROCESS_TRACE_MODE_EVENT_RECORD, 
+        PROCESS_TRACE_MODE_REAL_TIME
+    }
+};
+use crate::errors::WinThingError;
+use crate::winetl::{
+    record::EventRecord,
+    evntrace::{
+        open_trace, 
+        process_trace,
+        get_event_information
+    }
 };
 
+
 unsafe extern "system" fn process_event(
-    _p_event: PEVENT_RECORD
+    p_event: PEVENT_RECORD
 ) {
-    println!("process_event");
+    let (buf_size, e_info) = get_event_information(
+        p_event
+    ).expect("Error getting event info");
+
+    if (*e_info).DecodingSource != 0 {
+        return;
+    }
+
+    let record = EventRecord::new(
+        p_event as _,
+        e_info
+    );
+
+    let record_value = record.get_value();
+
+    println!("{}", record_value.to_string());
 }
 
 
 /// Represent an easy way to handle EVENT_TRACE_LOGFILEW
 /// 
-pub struct EventTraceLogFile(EVENT_TRACE_LOGFILEW);
+pub struct EventTraceLogFile{
+    inner_source: OsString,
+    inner: EVENT_TRACE_LOGFILEW
+}
 impl EventTraceLogFile {
     /// Create a EventTraceLogFile from a logfile name
     /// 
     pub fn from_logfile(
         logfile_name: &str
     ) -> Self {
+        let logfile_name: OsString = OsString::from(
+            logfile_name
+        );
+
         // LogFileName buffer
-        let mut logfile_name_u16: Vec<u16> = logfile_name.encode_utf16().collect();
-        // Add null terminater
-        logfile_name_u16.resize(logfile_name.len() + 1, 0);
+        let mut logfile_name_u16: Vec<u16> = logfile_name
+            .encode_wide()
+            //.chain(Some(0).into_iter())
+            .collect();
 
         let mut inner: EVENT_TRACE_LOGFILEW = unsafe {
             mem::zeroed()
@@ -52,7 +84,10 @@ impl EventTraceLogFile {
             *callback = Some(process_event);
         }
 
-        Self( inner )
+        Self { 
+            inner_source: logfile_name,
+            inner 
+        }
     }
 
     /// Create a EventTraceLogFile from a logger name
@@ -60,16 +95,21 @@ impl EventTraceLogFile {
     pub fn from_logger(
         logger_name: &str
     ) -> Self {
-        // LoggerName buffer
-        let mut logger_name_u16: Vec<u16> = logger_name.encode_utf16().collect();
-        // Add null terminater
-        logger_name_u16.resize(logger_name.len() + 1, 0);
+        let logger_name: OsString = OsString::from(
+            logger_name
+        );
+
+        // Logger buffer
+        let mut logger_name_u16: Vec<u16> = logger_name
+            .encode_wide()
+            .chain(Some(0).into_iter())
+            .collect();
 
         let mut inner: EVENT_TRACE_LOGFILEW = unsafe {
             mem::zeroed()
         };
 
-        // Set logfile name
+        // Set logger name
         inner.LoggerName = logger_name_u16.as_mut_ptr();
 
         // Set mode
@@ -84,13 +124,16 @@ impl EventTraceLogFile {
             *callback = Some(process_event);
         }
 
-        Self ( inner )
+        Self { 
+            inner_source: logger_name,
+            inner 
+        }
     }
 
     /// Set kernel trace flag
     ///
     pub fn is_kernel_trace(mut self, flag: u32) -> Self {
-        self.0.IsKernelTrace = flag;
+        self.inner.IsKernelTrace = flag;
         self
     }
 
@@ -101,7 +144,7 @@ impl EventTraceLogFile {
 }
 impl Into<EVENT_TRACE_LOGFILEW> for EventTraceLogFile {
     fn into(self) -> EVENT_TRACE_LOGFILEW {
-        self.0
+        self.inner
     }
 }
 

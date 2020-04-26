@@ -28,6 +28,10 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .takes_value(true)
         .help("A real-time logger to consume");
 
+    let is_kernel_arg = Arg::with_name("is_kernel")
+        .long("is_kernel")
+        .help("Is a kernel logger.");
+
     let debug_arg = Arg::with_name("debug")
         .short("-d")
         .long("debug")
@@ -42,6 +46,7 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .about(DESCRIPTION)
         .arg(logfile_arg)
         .arg(logger_arg)
+        .arg(is_kernel_arg)
         .arg(debug_arg)
 }
 
@@ -62,8 +67,13 @@ fn main() {
         None => {
             match options.value_of("logger") {
                 Some(logger) => {
+                    let kernel_flag = match options.is_present("is_kernel") {
+                        true => 1,
+                        false => 0
+                    };
+
                     EventTraceLogFile::from_logger(logger)
-                        .is_kernel_trace(0)
+                        .is_kernel_trace(kernel_flag)
                 },
                 None => {
                     eprintln!("No logfile or logger was specified");
