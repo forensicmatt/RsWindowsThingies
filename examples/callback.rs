@@ -1,8 +1,7 @@
+use rswinthings::winevt::callback::CallbackContext;
+use rswinthings::winevt::subscription::ChannelSubscription;
 use std::thread::sleep;
 use std::time::Duration;
-use rswinthings::winevt::subscription::ChannelSubscription;
-use rswinthings::winevt::callback::CallbackContext;
-
 
 fn main() {
     // Create context
@@ -14,7 +13,7 @@ fn main() {
         "Security".to_owned(),
         Some("*".to_owned()),
         None,
-        &context
+        &context,
     );
 
     // Create subscription
@@ -23,7 +22,7 @@ fn main() {
         "Windows PowerShell".to_owned(),
         Some("*".to_owned()),
         None,
-        &context
+        &context,
     );
 
     loop {

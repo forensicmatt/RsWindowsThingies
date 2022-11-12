@@ -1,6 +1,5 @@
-use byteorder::{ByteOrder, LittleEndian};
 use crate::errors::WinThingError;
-
+use byteorder::{ByteOrder, LittleEndian};
 
 /// Wrapper for the different READ_USN_JOURNAL_DATA versions.
 #[derive(Debug, Clone)]
@@ -9,74 +8,51 @@ pub enum ReadUsnJournalData {
     V1(ReadUsnJournalDataV1),
 }
 impl ReadUsnJournalData {
-    pub fn from_usn_journal_data(
-        journal_data: UsnJournalData
-    ) -> ReadUsnJournalData {
+    pub fn from_usn_journal_data(journal_data: UsnJournalData) -> ReadUsnJournalData {
         match journal_data {
             UsnJournalData::V0(journal_data_v0) => {
-                return ReadUsnJournalData::V0(
-                    ReadUsnJournalDataV0::new(
-                        journal_data_v0.first_usn,
-                        journal_data_v0.usn_jounral_id
-                    )
-                );
-            },
+                return ReadUsnJournalData::V0(ReadUsnJournalDataV0::new(
+                    journal_data_v0.first_usn,
+                    journal_data_v0.usn_jounral_id,
+                ));
+            }
             UsnJournalData::V1(journal_data_v1) => {
-                return ReadUsnJournalData::V1(
-                    ReadUsnJournalDataV1::new(
-                        journal_data_v1.first_usn,
-                        journal_data_v1.usn_jounral_id,
-                        journal_data_v1.min_major_version,
-                        journal_data_v1.max_major_version
-                    )
-                );
-            },
+                return ReadUsnJournalData::V1(ReadUsnJournalDataV1::new(
+                    journal_data_v1.first_usn,
+                    journal_data_v1.usn_jounral_id,
+                    journal_data_v1.min_major_version,
+                    journal_data_v1.max_major_version,
+                ));
+            }
             UsnJournalData::V2(journal_data_v2) => {
-                return ReadUsnJournalData::V1(
-                    ReadUsnJournalDataV1::new(
-                        journal_data_v2.first_usn,
-                        journal_data_v2.usn_jounral_id,
-                        journal_data_v2.min_major_version,
-                        journal_data_v2.max_major_version
-                    )
-                );
+                return ReadUsnJournalData::V1(ReadUsnJournalDataV1::new(
+                    journal_data_v2.first_usn,
+                    journal_data_v2.usn_jounral_id,
+                    journal_data_v2.min_major_version,
+                    journal_data_v2.max_major_version,
+                ));
             }
         }
     }
 
-    pub fn with_reason_mask(
-        mut self, 
-        reason_mask: u32
-    ) -> Self {
+    pub fn with_reason_mask(mut self, reason_mask: u32) -> Self {
         match self {
-            ReadUsnJournalData::V0(ref mut read_data_v0) => {
-                read_data_v0.reason_mask = reason_mask
-            },
-            ReadUsnJournalData::V1(ref mut read_data_v1) => {
-                read_data_v1.reason_mask = reason_mask
-            }
+            ReadUsnJournalData::V0(ref mut read_data_v0) => read_data_v0.reason_mask = reason_mask,
+            ReadUsnJournalData::V1(ref mut read_data_v1) => read_data_v1.reason_mask = reason_mask,
         }
 
         self
     }
 
-    pub fn with_start_usn(
-        mut self, 
-        start_usn: u64
-    ) -> Self {
+    pub fn with_start_usn(mut self, start_usn: u64) -> Self {
         match self {
-            ReadUsnJournalData::V0(ref mut read_data_v0) => {
-                read_data_v0.start_usn = start_usn
-            },
-            ReadUsnJournalData::V1(ref mut read_data_v1) => {
-                read_data_v1.start_usn = start_usn
-            }
+            ReadUsnJournalData::V0(ref mut read_data_v0) => read_data_v0.start_usn = start_usn,
+            ReadUsnJournalData::V1(ref mut read_data_v1) => read_data_v1.start_usn = start_usn,
         }
 
         self
     }
 }
-
 
 /// Represents a READ_USN_JOURNAL_DATA_V0 structure
 /// https://docs.microsoft.com/en-us/windows/desktop/api/winioctl/ns-winioctl-read_usn_journal_data_v0
@@ -105,10 +81,9 @@ impl ReadUsnJournalDataV0 {
             timeout,
             bytes_to_wait_for,
             usn_journal_id,
-        }
+        };
     }
 }
-
 
 /// Represents a READ_USN_JOURNAL_DATA_V1 structure
 /// https://docs.microsoft.com/en-us/windows/desktop/api/winioctl/ns-winioctl-read_usn_journal_data_v1
@@ -127,10 +102,10 @@ pub struct ReadUsnJournalDataV1 {
 }
 impl ReadUsnJournalDataV1 {
     fn new(
-        start_usn: u64, 
-        usn_journal_id: u64, 
-        min_major_version: u16, 
-        max_major_version: u16
+        start_usn: u64,
+        usn_journal_id: u64,
+        min_major_version: u16,
+        max_major_version: u16,
     ) -> Self {
         let reason_mask = 0xffffffff;
         let return_only_on_close = 0;
@@ -146,46 +121,31 @@ impl ReadUsnJournalDataV1 {
             usn_journal_id,
             min_major_version,
             max_major_version,
-        }
+        };
     }
 }
-
 
 /// Wrapper for the different USN_JOURNAL_DATA versions.
 #[derive(Debug, Clone)]
 pub enum UsnJournalData {
     V0(UsnJournalDataV0),
     V1(UsnJournalDataV1),
-    V2(UsnJournalDataV2)
+    V2(UsnJournalDataV2),
 }
 impl UsnJournalData {
     pub fn new(buffer: &[u8]) -> Result<UsnJournalData, WinThingError> {
         match buffer.len() {
             56 => {
-                return Ok(
-                    UsnJournalData::V0(
-                        UsnJournalDataV0::new(&buffer)
-                    )
-                );
-            },
+                return Ok(UsnJournalData::V0(UsnJournalDataV0::new(&buffer)));
+            }
             60 => {
-                return Ok(
-                    UsnJournalData::V1(
-                        UsnJournalDataV1::new(&buffer)
-                    )
-                );
-            },
+                return Ok(UsnJournalData::V1(UsnJournalDataV1::new(&buffer)));
+            }
             80 => {
-                return Ok(
-                    UsnJournalData::V2(
-                        UsnJournalDataV2::new(&buffer)
-                    )
-                );
-            },
+                return Ok(UsnJournalData::V2(UsnJournalDataV2::new(&buffer)));
+            }
             other => {
-                return Err(
-                    WinThingError::invalid_usn_journal_data(other)
-                );
+                return Err(WinThingError::invalid_usn_journal_data(other));
             }
         }
     }
@@ -198,7 +158,6 @@ impl UsnJournalData {
         }
     }
 }
-
 
 /// Represents a USN_JOURNAL_DATA_V0 structure
 /// https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_journal_data_v0
@@ -231,10 +190,9 @@ impl UsnJournalDataV0 {
             max_usn,
             maximum_size,
             allocation_delta,
-        }
+        };
     }
 }
-
 
 /// Represents a USN_JOURNAL_DATA_V1 structure
 /// https://docs.microsoft.com/en-us/windows/desktop/api/winioctl/ns-winioctl-usn_journal_data_v1
@@ -273,10 +231,9 @@ impl UsnJournalDataV1 {
             allocation_delta,
             min_major_version,
             max_major_version,
-        }
+        };
     }
 }
-
 
 /// Represents a USN_JOURNAL_DATA_V2 structure
 /// https://docs.microsoft.com/en-us/windows/desktop/api/winioctl/ns-winioctl-usn_journal_data_v2
@@ -324,6 +281,6 @@ impl UsnJournalDataV2 {
             flags,
             range_track_chunk_size,
             range_track_file_size_threshold,
-        }
+        };
     }
 }

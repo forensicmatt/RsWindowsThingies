@@ -1,13 +1,12 @@
+pub mod callback;
 pub mod channels;
+pub mod session;
+pub mod subscription;
 pub mod variant;
 pub mod wevtapi;
-pub mod callback;
-pub mod subscription;
-pub mod session;
+use crate::errors::WinThingError;
 use winapi::um::winevt::EvtClose;
 use winapi::um::winevt::EVT_HANDLE;
-use crate::errors::WinThingError;
-
 
 #[derive(Debug)]
 pub struct EvtHandle(pub EVT_HANDLE);
@@ -18,11 +17,7 @@ impl EvtHandle {
 }
 impl Drop for EvtHandle {
     fn drop(&mut self) {
-        let result = unsafe {
-            EvtClose(
-                self.0
-            )
-        };
+        let result = unsafe { EvtClose(self.0) };
 
         if result == 0 {
             let error = WinThingError::from_windows_last_error();
