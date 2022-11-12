@@ -1,6 +1,6 @@
-#[macro_use] extern crate serde_json;
+#[macro_use]
+extern crate serde_json;
 use rswinthings::utils::xmltojson::xml_string_to_json;
-
 
 static EVENT_STR1: &str = r###"
 <Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'>
@@ -66,34 +66,27 @@ static EVENT_STR2: &str = r###"
 
 #[test]
 fn xml_to_json_test() {
-    let json_value1 = xml_string_to_json(
-        EVENT_STR1.to_string()
-    ).expect("Error...");
+    let json_value1 = xml_string_to_json(EVENT_STR1.to_string()).expect("Error...");
 
     println!("{}", json_value1.to_string());
 
-	let json_value2 = xml_string_to_json(
-        EVENT_STR2.to_string()
-    ).expect("Error...");
+    let json_value2 = xml_string_to_json(EVENT_STR2.to_string()).expect("Error...");
 
     println!("{}", json_value2.to_string());
 }
 
-
 #[test]
-fn xml_to_json_test2(){
-	let xml_str = r###"<EventID Qualifiers='0'>600</EventID>"###;
-	let json_value = json!({
-		"EventID": 600,
-		"EventID_attributes": {
-			"Qualifiers": 0
-		}
-	});
+fn xml_to_json_test2() {
+    let xml_str = r###"<EventID Qualifiers='0'>600</EventID>"###;
+    let json_value = json!({
+        "EventID": 600,
+        "EventID_attributes": {
+            "Qualifiers": 0
+        }
+    });
 
-	let parsed_value = xml_string_to_json(
-        xml_str.to_string()
-    ).expect("Error parsing XML");
+    let parsed_value = xml_string_to_json(xml_str.to_string()).expect("Error parsing XML");
 
-	println!("{}", parsed_value.to_string());
-	assert_eq!(json_value, parsed_value)
+    println!("{}", parsed_value.to_string());
+    assert_eq!(json_value, parsed_value)
 }

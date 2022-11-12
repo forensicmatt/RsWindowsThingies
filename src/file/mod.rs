@@ -1,8 +1,7 @@
 pub mod fileapi;
 pub mod helper;
-use winapi::um::winnt::HANDLE;
 use crate::file::fileapi::close_handle;
-
+use winapi::um::winnt::HANDLE;
 
 #[derive(Debug)]
 pub struct FileHandle(pub HANDLE);
@@ -14,7 +13,7 @@ impl FileHandle {
 impl Drop for FileHandle {
     fn drop(&mut self) {
         match close_handle(self.0) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 eprintln!("Error calling FileHandle on HANDLE: {}", e.message);
             }
