@@ -1,19 +1,18 @@
 extern crate serde_json;
-use std::io::stdin;
-use std::io::BufRead;
 use clap::{App, Arg};
-use std::process::exit;
-use std::thread;
-use std::sync::mpsc;
-use std::sync::mpsc::{Sender, Receiver};
-use rusty_usn::record::UsnEntry;
-use rswinthings::utils::json::get_difference_value;
-use rswinthings::utils::debug::set_debug_level;
 use rswinthings::mft::EntryListener;
 use rswinthings::usn::listener::UsnVolumeListener;
+use rswinthings::utils::debug::set_debug_level;
+use rswinthings::utils::json::get_difference_value;
+use rusty_usn::record::UsnEntry;
+use std::io::stdin;
+use std::io::BufRead;
+use std::process::exit;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
 
 static VERSION: &'static str = "0.2.0";
-
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
     let format = Arg::with_name("file")
@@ -39,23 +38,20 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .arg(debug)
 }
 
-
 fn run(mut listener: EntryListener) {
     let (tx, rx): (Sender<UsnEntry>, Receiver<UsnEntry>) = mpsc::channel();
 
-    let mut previous_value = listener.get_current_value().expect("Unable to get current mft entry value");
+    let mut previous_value = listener
+        .get_current_value()
+        .expect("Unable to get current mft entry value");
     println!("{}", previous_value.to_string());
 
-    let volume_str = listener.get_volume_string().expect("Error getting volume path.");
-    let usn_volume_listener = UsnVolumeListener::new(
-        volume_str,
-        false,
-        tx.clone()
-    );
+    let volume_str = listener
+        .get_volume_string()
+        .expect("Error getting volume path.");
+    let usn_volume_listener = UsnVolumeListener::new(volume_str, false, tx.clone());
 
-    let _thread = thread::spawn(move || {
-        usn_volume_listener.listen_to_volume(None)
-    });
+    let _thread = thread::spawn(move || usn_volume_listener.listen_to_volume(None));
 
     loop {
         let usn_entry = match rx.recv() {
@@ -69,12 +65,11 @@ fn run(mut listener: EntryListener) {
             continue;
         }
 
-        let current_value = listener.get_current_value().expect("Unable to get current mft entry value");
+        let current_value = listener
+            .get_current_value()
+            .expect("Unable to get current mft entry value");
 
-        let difference_value = get_difference_value(
-            &previous_value,
-            &current_value
-        );
+        let difference_value = get_difference_value(&previous_value, &current_value);
 
         match difference_value.as_object() {
             None => continue,
@@ -83,18 +78,16 @@ fn run(mut listener: EntryListener) {
                     continue;
                 }
 
-                let value_str = serde_json::to_string_pretty(
-                    &difference_value
-                ).expect("Unable to format Value");
-        
+                let value_str = serde_json::to_string_pretty(&difference_value)
+                    .expect("Unable to format Value");
+
                 println!("{}", value_str);
-        
+
                 previous_value = current_value.to_owned();
             }
         }
     }
 }
-
 
 fn main() {
     let app = make_app();
@@ -102,9 +95,7 @@ fn main() {
 
     // Set debug
     match options.value_of("debug") {
-        Some(d) => set_debug_level(d).expect(
-            "Error setting debug level"
-        ),
+        Some(d) => set_debug_level(d).expect("Error setting debug level"),
         None => {}
     }
 
@@ -116,9 +107,7 @@ fn main() {
         }
     };
 
-    let listener = EntryListener::new(
-        file_path
-    ).expect("Error creating EntryListener");
+    let listener = EntryListener::new(file_path).expect("Error creating EntryListener");
 
     run(listener);
 }

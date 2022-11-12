@@ -1,15 +1,11 @@
-use std::process::exit;
-use clap::{App, Arg, ArgMatches};
-use winapi::um::winevt::{
-    EvtRpcLoginAuthDefault,
-    EvtRpcLoginAuthNegotiate,
-    EvtRpcLoginAuthKerberos,
-    EvtRpcLoginAuthNTLM
-};
-use winapi::um::winevt::EVT_RPC_LOGIN_FLAGS;
 use crate::errors::WinThingError;
 use crate::winevt::session::RemoteSession;
-
+use clap::{App, Arg, ArgMatches};
+use std::process::exit;
+use winapi::um::winevt::EVT_RPC_LOGIN_FLAGS;
+use winapi::um::winevt::{
+    EvtRpcLoginAuthDefault, EvtRpcLoginAuthKerberos, EvtRpcLoginAuthNTLM, EvtRpcLoginAuthNegotiate,
+};
 
 fn flag_from_str(flag_str: &str) -> EVT_RPC_LOGIN_FLAGS {
     match flag_str {
@@ -23,7 +19,6 @@ fn flag_from_str(flag_str: &str) -> EVT_RPC_LOGIN_FLAGS {
         }
     }
 }
-
 
 pub fn add_session_options_to_app<'a, 'b>(app: App<'a, 'b>) -> App<'a, 'b> {
     let server = Arg::with_name("server")
@@ -51,43 +46,33 @@ pub fn add_session_options_to_app<'a, 'b>(app: App<'a, 'b>) -> App<'a, 'b> {
         .possible_values(&["Default", "Negotiate", "Kerberos", "NTLM"])
         .help("The authentication method to use to authenticate the user when connecting to the remote computer.");
 
-    app.arg(server)
-        .arg(user)
-        .arg(domain)
-        .arg(sflag)
+    app.arg(server).arg(user).arg(domain).arg(sflag)
 }
 
 pub fn get_session_from_matches<'n>(
-    options: &ArgMatches<'n>
+    options: &ArgMatches<'n>,
 ) -> Result<Option<RemoteSession>, WinThingError> {
     let server = match options.value_of("server") {
         Some(s) => s,
-        None => return Ok(None)
+        None => return Ok(None),
     };
 
     let user = match options.value_of("user") {
         Some(s) => Some(s),
-        None => None
+        None => None,
     };
 
     let domain = match options.value_of("domain") {
         Some(s) => Some(s),
-        None => None
+        None => None,
     };
 
     let flags = match options.value_of("flags") {
         Some(s) => Some(flag_from_str(s)),
-        None => None
+        None => None,
     };
 
-    let remote_session = RemoteSession::from_prompt_password(
-        server,
-        user,
-        domain,
-        flags
-    )?;
+    let remote_session = RemoteSession::from_prompt_password(server, user, domain, flags)?;
 
-    Ok(
-        Some(remote_session)
-    )
+    Ok(Some(remote_session))
 }

@@ -1,16 +1,13 @@
-#[macro_use] extern crate serde_json;
+#[macro_use]
+extern crate serde_json;
 use clap::{App, Arg};
-use std::process::exit;
-use rswinthings::utils::cli::{
-    add_session_options_to_app,
-    get_session_from_matches
-};
+use rswinthings::utils::cli::{add_session_options_to_app, get_session_from_matches};
 use rswinthings::utils::debug::set_debug_level;
-use rswinthings::winevt::channels::ChannelConfig;
 use rswinthings::winevt::channels::get_channel_name_list;
+use rswinthings::winevt::channels::ChannelConfig;
+use std::process::exit;
 
 static VERSION: &'static str = "0.2.0";
-
 
 fn make_app<'a, 'b>() -> App<'a, 'b> {
     let format = Arg::with_name("format")
@@ -35,16 +32,15 @@ fn make_app<'a, 'b>() -> App<'a, 'b> {
         .about("Print Channel Propperties.")
         .arg(format)
         .arg(debug);
-    
+
     // Add session arguments to app
     add_session_options_to_app(app)
 }
 
-
 fn print_text_value(name: &str, config_value: serde_json::Value) {
-    let config_map = config_value.as_object().expect(
-        "config_value should be a mapping."
-    );
+    let config_map = config_value
+        .as_object()
+        .expect("config_value should be a mapping.");
 
     println!("========================================================");
     println!("Channel: {}", name);
@@ -54,7 +50,6 @@ fn print_text_value(name: &str, config_value: serde_json::Value) {
     }
     println!("");
 }
-
 
 fn print_jsonl_value(config_value: serde_json::Value) {
     println!("{}", config_value.to_string());
@@ -66,27 +61,23 @@ fn main() {
 
     // Set debug
     match options.value_of("debug") {
-        Some(d) => set_debug_level(d).expect(
-            "Error setting debug level"
-        ),
+        Some(d) => set_debug_level(d).expect("Error setting debug level"),
         None => {}
     }
 
     let out_format = match options.value_of("format") {
         Some(f) => f,
-        None => "text"
+        None => "text",
     };
 
-    let session = match get_session_from_matches(
-        &options
-    ).expect("Error getting session from options") {
-        Some(s) => Some(s.0),
-        None => None
-    };
+    let session =
+        match get_session_from_matches(&options).expect("Error getting session from options") {
+            Some(s) => Some(s.0),
+            None => None,
+        };
 
     // Get list of channel names
-    let channels = get_channel_name_list(&session)
-        .expect("Could not get channel name list");
+    let channels = get_channel_name_list(&session).expect("Could not get channel name list");
 
     for channel in channels {
         // Get the channel config for this channel name
@@ -111,7 +102,7 @@ fn main() {
             "jsonl" => {
                 channel_config_value["ChannelName"] = json!(channel.to_owned());
                 print_jsonl_value(channel_config_value);
-            },
+            }
             other => {
                 eprintln!("Unhandled output format: {}", other);
                 exit(-1);

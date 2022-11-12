@@ -1,6 +1,6 @@
-#[macro_use] extern crate serde_json;
+#[macro_use]
+extern crate serde_json;
 use rswinthings::utils::json::get_difference_value;
-
 
 #[test]
 fn json_test() {
@@ -210,11 +210,7 @@ fn json_test() {
         }
     });
 
-    let new_value = get_difference_value(
-        &json_value1, 
-        &json_value2
-    );
+    let new_value = get_difference_value(&json_value1, &json_value2);
 
     println!("{}", new_value.to_string());
 }
-

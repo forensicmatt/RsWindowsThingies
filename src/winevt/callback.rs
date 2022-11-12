@@ -1,13 +1,12 @@
 use crate::utils::xmltojson::xml_string_to_json;
 
-
 pub enum OutputFormat {
     XmlFormat,
-    JsonlFormat
+    JsonlFormat,
 }
 
 pub struct CallbackContext {
-    format: OutputFormat
+    format: OutputFormat,
 }
 
 impl CallbackContext {
@@ -32,7 +31,7 @@ impl CallbackContext {
                 };
 
                 println!("{}", &value.to_string());
-            },
+            }
             OutputFormat::XmlFormat => {
                 println!("{}", xml_string);
             }
@@ -43,7 +42,7 @@ impl CallbackContext {
 impl Default for CallbackContext {
     fn default() -> Self {
         Self {
-            format: OutputFormat::JsonlFormat
+            format: OutputFormat::JsonlFormat,
         }
     }
 }
