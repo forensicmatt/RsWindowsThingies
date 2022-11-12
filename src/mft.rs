@@ -20,6 +20,9 @@ fn get_attr_name(attribute: &MftAttributeType) -> String {
         MftAttributeType::IndexAllocation => "IndexAllocation".to_string(),
         MftAttributeType::BITMAP => "BITMAP".to_string(),
         MftAttributeType::ReparsePoint => "ReparsePoint".to_string(),
+        MftAttributeType::EaInformation => "EaInformation".to_string(),
+        MftAttributeType::EA => "EA".to_string(),
+        MftAttributeType::LoggedUtilityStream => "LoggedUtilityStream".to_string(),
     }
 }
 
